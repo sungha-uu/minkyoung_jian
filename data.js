@@ -1,56 +1,34 @@
-window.RECIPE_DATA = [
+window.GUIDE_DATA = [
   {
-    id: "mandu-meat", category: "mandu", categoryLabel: "만두", name: "고기만두", subtitle: "매일 직접 빚는 기본 만두", image: "assets/images/mandu-bibim.png", status: "운영 중", statusTone: "green", updated: "2026.09.18", version: "v1.2", yield: "만두 100개", prep: "70분", cook: "12분",
-    versions: [
-      { id: "v1.2", date: "2026.09.18", note: "육즙 보존을 위해 채소 탈수율과 혼합 순서 조정" },
-      { id: "v1.1", date: "2026.08.27", note: "찜 시간 및 1차 냉각 기준 추가" },
-      { id: "v1.0", date: "2026.08.12", note: "최초 레시피 등록" }
-    ],
-    ingredients: [
-      { group: "만두소", items: [["다진 돼지고기", 1800, "g"], ["부추", 600, "g"], ["양배추", 900, "g"], ["두부", 600, "g"], ["당면", 350, "g"], ["다진 마늘", 90, "g"], ["진간장", 150, "ml"], ["참기름", 80, "ml"]] },
-      { group: "조립", items: [["만두피", 100, "장"], ["물", 100, "ml"]] }
-    ],
-    steps: [
-      { title: "재료 전처리", time: "25분", body: "채소는 곱게 다진 뒤 수분을 충분히 빼고, 두부도 면포로 눌러 물기를 제거합니다.", tip: "채소 수분이 남으면 냉장 보관 중 피가 쉽게 불어요." },
-      { title: "만두소 혼합", time: "15분", body: "돼지고기에 양념을 먼저 넣고 끈기가 생길 때까지 섞은 뒤, 채소와 당면을 가볍게 합칩니다.", tip: "고기와 채소는 너무 오래 치대지 않도록 합니다." },
-      { title: "성형 및 찌기", time: "22분", body: "만두피에 소를 일정량 담아 빚고, 김이 오른 찜기에 서로 닿지 않게 올려 충분히 익힙니다." },
-      { title: "식힘 및 보관", time: "8분", body: "넓게 펼쳐 중심부 열을 빠르게 식힌 뒤 밀폐 용기에 담아 냉장 보관합니다.", warning: "실제 냉각·보관 기준은 영업장 위생 기준에 맞춰 확정하세요." }
-    ],
-    note: "현재 내용은 UI 확인용 샘플입니다. 실제 배합과 공정으로 반드시 교체해야 합니다."
+    id:"staff-dumplings",category:"staff",categoryLabel:"직원용 조리 가이드",type:"만두류 통합",name:"만두류 표준 조리",subtitle:"찐만두와 꾼만두의 주문 즉시 조리 기준",image:"assets/images/mandu-bibim.png",status:"기준 확인 필요",statusTone:"orange",updated:"2026.09.19",version:"v0.9",yield:"주문 1인분",prep:"1분",cook:"약 5분",tags:["직원용","만두","찜기","튀김"],
+    versions:[{id:"v0.9",date:"2026.09.19",note:"만두 종류를 하나의 조리 가이드로 통합"},{id:"v0.8",date:"2026.09.16",note:"찜·튀김 예시 기준 작성"}],
+    ingredients:[{group:"찐만두 1인분",items:[["냉장 만두",5,"개"],["찜기 물",1,"회"]]},{group:"꾼만두 1인분",items:[["냉장 만두",5,"개"],["튀김유",1,"회"]]}],
+    steps:[
+      {title:"공통 준비",time:"1분",body:"주문 수량과 만두 종류를 확인하고 만두끼리 붙거나 피가 찢어진 것이 없는지 확인합니다."},
+      {title:"찐만두 — 찜기 조리",time:"약 5분",body:"김이 충분히 오른 찜기에 만두를 서로 닿지 않게 넣고 뚜껑을 닫아 조리합니다.",warning:"5분은 화면 확인용 예시입니다. 실제 중심 온도와 매장 찜기 기준으로 확정해야 합니다."},
+      {title:"꾼만두 — 튀김 조리",time:"예시 4분",body:"예열된 기름에 만두를 넣고 서로 붙지 않게 저어가며 전체가 노릇해질 때까지 튀깁니다.",warning:"튀김 온도와 시간은 실제 테스트 후 반드시 교체합니다."},
+      {title:"검수와 담기",time:"30초",body:"피 터짐, 색, 속까지 데워졌는지 확인한 뒤 정해진 수량과 소스를 함께 담습니다.",tip:"피크 시간에도 한 번에 넣는 최대 수량을 넘기지 않습니다."}
+    ],note:"직원 누구나 같은 결과를 낼 수 있도록 실제 찜기 시간, 튀김 온도, 1회 최대 투입량을 입력합니다."
   },
   {
-    id: "mandu-fried", category: "mandu", categoryLabel: "만두", name: "꾼만두", subtitle: "겉은 바삭하고 속은 촉촉하게", image: "assets/images/mandu-bibim.png", status: "개선 중", statusTone: "orange", updated: "2026.09.16", version: "v1.1", yield: "1인분 · 5개", prep: "2분", cook: "6분",
-    versions: [{ id: "v1.1", date: "2026.09.16", note: "2단 튀김 온도 테스트" }, { id: "v1.0", date: "2026.08.20", note: "최초 조리 기준 등록" }],
-    ingredients: [{ group: "1인분", items: [["찐 고기만두", 5, "개"], ["튀김유", 1000, "ml"], ["간장 소스", 30, "ml"]] }],
-    steps: [{ title: "예열", time: "3분", body: "튀김유를 목표 온도까지 충분히 예열합니다." }, { title: "1차 튀김", time: "2분", body: "냉장 만두 표면의 물기를 확인하고 서로 붙지 않도록 넣습니다.", warning: "수분이 남은 만두는 기름이 튈 수 있습니다." }, { title: "마무리", time: "1분", body: "표면이 고르게 노릇해지면 건져 기름을 뺀 뒤 즉시 제공합니다." }],
-    note: "피가 터지는 비율과 주문 몰릴 때의 적정 튀김량을 기록할 예정입니다."
+    id:"staff-udon",category:"staff",categoryLabel:"직원용 조리 가이드",type:"면 조리",name:"우동 표준 조리",subtitle:"육수 끓이기부터 면과 고명 담기까지",image:"assets/images/pot-udon.png",status:"기준 확인 필요",statusTone:"orange",updated:"2026.09.18",version:"v0.9",yield:"주문 1인분",prep:"1분",cook:"약 6분",tags:["직원용","우동","끓는물","육수"],versions:[{id:"v0.9",date:"2026.09.18",note:"직원용 단계 초안"}],ingredients:[{group:"1인분 준비",items:[["우동면",1,"봉"],["우동 육수",550,"ml"],["어묵",2,"장"],["고명",1,"회"]]}],steps:[{title:"육수 끓이기",time:"3분",body:"냄비에 정량 육수를 붓고 완전히 끓입니다."},{title:"면 풀기",time:"예시 2분",body:"끓는 육수에 우동면을 넣고 젓가락으로 가볍게 풀어줍니다.",warning:"면을 너무 오래 저으면 끊어지므로 실제 면 제품 기준 시간을 확인합니다."},{title:"어묵과 고명",time:"1분",body:"어묵을 데운 뒤 불을 끄고 정해진 순서로 대파와 김가루를 올립니다."},{title:"제공",time:"즉시",body:"냄비 손잡이 방향과 넘침 여부를 확인해 손님에게 안전하게 제공합니다."}],note:"냄비 크기, 실제 육수량, 면 조리 시간을 직원 교육 후 확정합니다."
   },
   {
-    id: "bibim-veg", category: "special", categoryLabel: "별미 · 사이드", name: "비빔야채", subtitle: "만두와 곁들이는 새콤한 한 접시", image: "assets/images/mandu-bibim.png", status: "운영 중", statusTone: "green", updated: "2026.09.12", version: "v1.0", yield: "10인분", prep: "20분", cook: "—",
-    versions: [{ id: "v1.0", date: "2026.09.12", note: "최초 레시피 등록" }],
-    ingredients: [{ group: "채소", items: [["양배추", 800, "g"], ["당근", 150, "g"], ["깻잎", 20, "장"]] }, { group: "비빔 양념", items: [["고추장", 220, "g"], ["식초", 160, "ml"], ["설탕", 130, "g"], ["참기름", 40, "ml"]] }],
-    steps: [{ title: "채소 손질", time: "12분", body: "채소는 일정한 굵기로 채 썰어 찬물에 헹군 뒤 물기를 완전히 제거합니다." }, { title: "양념 혼합", time: "3분", body: "양념 재료를 덩어리 없이 섞고 냉장 숙성합니다." }, { title: "주문 즉시 버무리기", time: "1분", body: "1인분씩 계량한 채소에 양념을 넣고 숨이 죽지 않게 가볍게 버무립니다." }],
-    note: "시간대별 채소 물 생김과 양념 농도를 비교해 기록합니다."
+    id:"staff-tangsuyuk",category:"staff",categoryLabel:"직원용 조리 가이드",type:"튀김 조리",name:"탕수육 표준 조리",subtitle:"초벌부터 소스와 담음새까지",image:"assets/images/tangsuyuk.jpeg",status:"테스트",statusTone:"purple",updated:"2026.09.17",version:"v0.8",yield:"소 1접시",prep:"2분",cook:"약 7분",tags:["직원용","탕수육","튀김"],versions:[{id:"v0.8",date:"2026.09.17",note:"초벌·재벌 단계 분리"}],ingredients:[{group:"1접시 준비",items:[["손질 고기",300,"g"],["튀김 반죽",1,"회"],["탕수육 소스",1,"회"]]}],steps:[{title:"반죽 입히기",time:"1분",body:"고기에 튀김 반죽을 고르게 입히고 서로 붙은 조각을 떼어냅니다."},{title:"1차 튀김",time:"예시 4분",body:"정해진 온도의 기름에 고기를 나누어 넣어 속까지 익힙니다."},{title:"2차 튀김",time:"예시 1분",body:"주문 직전 높은 온도에서 짧게 다시 튀겨 바삭함을 살립니다."},{title:"소스와 담기",time:"1분",body:"정량 소스를 준비하고 매장 기준에 따라 부먹 또는 찍먹으로 제공합니다."}],note:"실제 기름 온도, 고기 크기, 초벌 보관 가능 시간을 확정해야 합니다."
   },
   {
-    id: "udon-pot", category: "noodle", categoryLabel: "면 요리", name: "냄비우동", subtitle: "뜨끈하고 깔끔한 시장 우동", image: "assets/images/pot-udon.png", status: "운영 중", statusTone: "green", updated: "2026.09.10", version: "v1.3", yield: "1인분", prep: "3분", cook: "7분",
-    versions: [{ id: "v1.3", date: "2026.09.10", note: "육수 염도 기준 보완" }, { id: "v1.2", date: "2026.08.21", note: "고명 순서 변경" }, { id: "v1.0", date: "2026.08.05", note: "최초 레시피 등록" }],
-    ingredients: [{ group: "1인분", items: [["우동면", 1, "봉"], ["우동 육수", 550, "ml"], ["어묵", 2, "장"], ["대파", 15, "g"], ["김가루", 2, "g"]] }],
-    steps: [{ title: "육수 끓이기", time: "4분", body: "냄비에 계량한 육수를 넣고 완전히 끓입니다." }, { title: "면과 어묵 익히기", time: "2분", body: "면을 풀어 넣고 어묵과 함께 끓여 중심까지 뜨겁게 합니다." }, { title: "고명과 제공", time: "1분", body: "대파와 김가루를 올려 냄비째 안전하게 제공합니다." }],
-    note: "피크타임 육수 농축과 면 퍼짐을 줄이는 방법을 검토합니다."
+    id:"staff-fishcake",category:"staff",categoryLabel:"직원용 조리 가이드",type:"국물 조리",name:"콩나물 어묵 표준 조리",subtitle:"국물 농도와 콩나물 식감을 일정하게",image:"assets/images/fishcake.png",status:"운영 중",statusTone:"green",updated:"2026.09.15",version:"v1.0",yield:"주문 1인분",prep:"1분",cook:"약 4분",tags:["직원용","어묵","콩나물"],versions:[{id:"v1.0",date:"2026.09.15",note:"최초 직원용 가이드"}],ingredients:[{group:"1인분 준비",items:[["어묵",4,"개"],["콩나물",1,"회"],["육수",1,"회"],["양념",1,"회"]]}],steps:[{title:"육수와 어묵",time:"3분",body:"정량 육수와 어묵을 넣고 충분히 끓입니다."},{title:"콩나물",time:"예시 1분",body:"콩나물을 마지막에 넣어 숨이 너무 죽지 않도록 익힙니다."},{title:"간과 제공",time:"30초",body:"국물 농도와 수량을 확인한 뒤 정해진 용기에 담습니다."}],note:"보온 시간이 길어질 때 육수 보충 기준과 콩나물 교체 기준을 추가합니다."
   },
   {
-    id: "tangsuyuk", category: "special", categoryLabel: "별미 · 사이드", name: "옛날 탕수육", subtitle: "바삭한 튀김과 새콤달콤 소스", image: "assets/images/tangsuyuk.jpeg", status: "테스트", statusTone: "purple", updated: "2026.09.08", version: "v0.9", yield: "소 · 1접시", prep: "15분", cook: "8분",
-    versions: [{ id: "v0.9", date: "2026.09.08", note: "소스 점도와 튀김옷 비율 테스트" }, { id: "v0.8", date: "2026.08.30", note: "초기 테스트" }],
-    ingredients: [{ group: "튀김", items: [["돼지고기", 300, "g"], ["전분", 120, "g"], ["물", 100, "ml"]] }, { group: "소스", items: [["물", 250, "ml"], ["식초", 70, "ml"], ["설탕", 90, "g"], ["간장", 20, "ml"]] }],
-    steps: [{ title: "고기 밑간", time: "10분", body: "고기를 일정한 크기로 손질해 밑간합니다." }, { title: "튀기기", time: "6분", body: "전분옷을 입혀 바삭하게 두 번 튀깁니다." }, { title: "소스 완성", time: "2분", body: "소스를 끓여 농도를 맞추고 주문 방식에 따라 곁들입니다." }],
-    note: "배달 없이 노점 즉시 판매 기준으로 가장 오래 바삭한 배합을 찾습니다."
+    id:"customer-raw-dumplings",category:"customer",categoryLabel:"손님용 조리 안내",type:"포장 안내",name:"포장 생만두 맛있게 드시는 법",subtitle:"찜기·전자레인지·에어프라이어·팬 조리",image:"assets/images/mandu-bibim.png",status:"판촉물 초안",statusTone:"purple",updated:"2026.09.19",version:"v0.9",yield:"만두 5개 기준",prep:"1분",cook:"방법별 상이",tags:["손님용","포장","생만두","QR안내"],versions:[{id:"v0.9",date:"2026.09.19",note:"네 가지 가정 조리법 구성"}],ingredients:[{group:"기본 준비",items:[["포장 생만두",5,"개"],["물",1,"회"]]}],steps:[
+      {title:"찜기 — 가장 추천",time:"예시 8분",body:"찜기에 물을 끓이고 김이 충분히 오르면 만두가 서로 닿지 않게 올려 쪄주세요.",warning:"생만두 실제 권장 시간은 크기와 속 상태를 확인해 확정합니다."},
+      {title:"전자레인지 — 간편하게",time:"예시 3분",body:"접시에 만두를 놓고 물을 살짝 뿌린 뒤 젖은 키친타월이나 전용 덮개를 덮어 데워주세요.",tip:"전자레인지 출력에 따라 시간을 나누어 추가하세요."},
+      {title:"에어프라이어 — 바삭하게",time:"예시 180℃ · 10분",body:"만두 표면에 기름을 얇게 바르고 서로 겹치지 않게 놓은 뒤 중간에 한 번 뒤집어 주세요."},
+      {title:"프라이팬 — 촉촉하고 바삭하게",time:"예시 7분",body:"기름을 두른 팬에 만두를 놓고 바닥을 굽다가 물을 조금 넣고 뚜껑을 덮어 익혀주세요. 물이 사라지면 바닥을 다시 바삭하게 구워주세요."},
+      {title:"익힘 확인",time:"필수",body:"만두 속 중심까지 충분히 뜨겁게 익었는지 확인한 뒤 드세요.",warning:"표시 시간은 UI 예시입니다. 실제 제품 테스트 후 안전한 기준으로 교체합니다."}
+    ],note:"손님이 QR로 열어보는 판촉용 화면입니다. 실제 포장 만두로 각 기기별 테스트 후 정확한 시간과 과정 사진을 등록합니다."
   },
   {
-    id: "fishcake", category: "special", categoryLabel: "별미 · 사이드", name: "콩나물어묵", subtitle: "칼칼한 국물과 아삭한 콩나물", image: "assets/images/fishcake.png", status: "운영 중", statusTone: "green", updated: "2026.09.04", version: "v1.0", yield: "10인분", prep: "15분", cook: "18분",
-    versions: [{ id: "v1.0", date: "2026.09.04", note: "최초 레시피 등록" }],
-    ingredients: [{ group: "재료", items: [["꼬치 어묵", 40, "개"], ["콩나물", 800, "g"], ["육수", 5000, "ml"], ["대파", 120, "g"]] }],
-    steps: [{ title: "육수 준비", time: "10분", body: "육수를 끓여 기본 간을 맞춥니다." }, { title: "어묵 익히기", time: "6분", body: "어묵을 넣어 충분히 데우고 맛이 배게 합니다." }, { title: "콩나물 마무리", time: "2분", body: "콩나물을 마지막에 넣어 아삭함을 살립니다." }],
-    note: "장시간 보온 시 콩나물 식감과 국물 염도 변화를 기록합니다."
+    id:"customer-reheat-dumplings",category:"customer",categoryLabel:"손님용 조리 안내",type:"포장 안내",name:"익힌 만두 다시 데우는 법",subtitle:"식은 찐만두와 꾼만두를 맛있게 되살리기",image:"assets/images/mandu-bibim.png",status:"판촉물 초안",statusTone:"purple",updated:"2026.09.18",version:"v0.8",yield:"만두 5개 기준",prep:"1분",cook:"방법별 상이",tags:["손님용","재가열","포장"],versions:[{id:"v0.8",date:"2026.09.18",note:"재가열 안내 초안"}],ingredients:[{group:"준비",items:[["포장한 익힌 만두",5,"개"]]}],steps:[{title:"찐만두 전자레인지",time:"예시 1~2분",body:"물을 살짝 뿌리고 덮개를 씌워 짧게 나누어 데워주세요."},{title:"꾼만두 에어프라이어",time:"예시 170℃ · 5분",body:"겹치지 않게 넣고 겉이 바삭해질 때까지 데워주세요."},{title:"팬 재가열",time:"예시 4분",body:"약불에서 뚜껑을 덮어 속을 데운 뒤 뚜껑을 열고 겉면을 구워주세요."}],note:"포장 후 경과 시간과 보관 조건을 포함한 안전 안내를 추가해야 합니다."
   }
 ];

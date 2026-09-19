@@ -1,130 +1,119 @@
-const recipes = window.RECIPE_DATA;
-const state = { selected: recipes[0].id, category: "all", query: "", multiplier: 1, sortDesc: true };
+const recipeItems = window.RECIPE_DATA;
+const guideItems = window.GUIDE_DATA;
+const FAVORITES_KEY = "kkun-recipe-favorites-v1";
+const categories = {
+  recipes: [
+    { id:"all", label:"전체 레시피", color:"#eb5d43" },
+    { id:"store", label:"섹시한꾼만두", color:"#ed9b45" },
+    { id:"new", label:"신메뉴 레시피", color:"#5b9a81" },
+    { id:"school", label:"급식 레시피", color:"#6d87bd" },
+    { id:"famous", label:"유명한 레시피", color:"#826eb4" },
+    { id:"baek", label:"백종원 레시피", color:"#b96d86" },
+    { id:"favorite1", label:"즐겨찾기 1", color:"#e2a23b", favorite:true },
+    { id:"favorite2", label:"즐겨찾기 2", color:"#cf6a60", favorite:true }
+  ],
+  guides: [
+    { id:"all", label:"전체 조리 가이드", color:"#eb5d43" },
+    { id:"staff", label:"직원용 조리방법", color:"#5b9a81" },
+    { id:"customer", label:"손님용 조리 안내", color:"#826eb4" }
+  ]
+};
 
+const state = { view:"recipes", category:"store", query:"", selected:recipeItems[0].id, selectedView:"recipes", multiplier:1, sortDesc:true, favorites:loadFavorites() };
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const listEl = $("#recipeList");
 const detailEl = $("#recipeDetail");
 const toastEl = $("#toast");
 
-const formatAmount = (value, unit, multiplier) => {
-  const amount = value * multiplier;
-  const formatted = Number.isInteger(amount) ? amount.toLocaleString("ko-KR") : amount.toLocaleString("ko-KR", { maximumFractionDigits: 1 });
-  return `${formatted}${unit}`;
-};
+function loadFavorites(){ try{return JSON.parse(localStorage.getItem(FAVORITES_KEY))||{}}catch{return{}} }
+function saveFavorites(){ localStorage.setItem(FAVORITES_KEY,JSON.stringify(state.favorites)); }
+function favoriteSlot(id){ return state.favorites[id]||0; }
+function cycleFavorite(id){ const next=(favoriteSlot(id)+1)%3; if(next)state.favorites[id]=next;else delete state.favorites[id]; saveFavorites(); showToast(next?`즐겨찾기 ${next}에 저장했습니다`:"즐겨찾기에서 해제했습니다"); render(); }
+function currentCollection(){ return state.view==="recipes"?recipeItems:guideItems; }
+function itemKey(item,view){ return `${view}:${item.id}`; }
+function formatAmount(value,unit,multiplier){ const amount=value*multiplier; return `${Number.isInteger(amount)?amount.toLocaleString("ko-KR"):amount.toLocaleString("ko-KR",{maximumFractionDigits:1})}${unit}`; }
+function searchableText(item){ return [item.name,item.subtitle,item.categoryLabel,item.type,item.note,...(item.tags||[]),...item.ingredients.flatMap(g=>g.items.map(i=>i[0])),...item.steps.flatMap(s=>[s.title,s.body,s.tip||"",s.warning||""])].join(" ").toLowerCase(); }
 
-function filteredRecipes() {
-  return recipes
-    .filter((recipe) => state.category === "all" || recipe.category === state.category)
-    .filter((recipe) => {
-      const haystack = [recipe.name, recipe.subtitle, recipe.categoryLabel, ...recipe.ingredients.flatMap((group) => group.items.map((item) => item[0]))].join(" ").toLowerCase();
-      return haystack.includes(state.query.toLowerCase());
-    })
-    .sort((a, b) => state.sortDesc ? b.updated.localeCompare(a.updated) : a.name.localeCompare(b.name, "ko"));
+function filteredItems(){
+  let source=state.query
+    ? [...recipeItems.map(item=>({item,view:"recipes"})),...guideItems.map(item=>({item,view:"guides"}))]
+    : currentCollection().map(item=>({item,view:state.view}));
+  if(!state.query&&state.category!=="all"){
+    if(state.category.startsWith("favorite")){ const slot=Number(state.category.slice(-1)); source=source.filter(({item,view})=>favoriteSlot(itemKey(item,view))===slot); }
+    else source=source.filter(({item})=>item.category===state.category);
+  }
+  if(state.query)source=source.filter(({item})=>searchableText(item).includes(state.query.toLowerCase()));
+  return source.sort((a,b)=>state.sortDesc?b.item.updated.localeCompare(a.item.updated):a.item.name.localeCompare(b.item.name,"ko"));
 }
 
-function renderList() {
-  const visible = filteredRecipes();
-  $("#visibleCount").textContent = `${visible.length}개`;
-  $("#recipeCount").textContent = recipes.length;
-  $("#emptyState").hidden = visible.length > 0;
-  listEl.innerHTML = visible.map((recipe) => `
-    <button class="recipe-card ${state.selected === recipe.id ? "is-active" : ""}" data-id="${recipe.id}">
-      <span class="card-image"><img src="${recipe.image}" alt=""><i class="status-dot ${recipe.statusTone}"></i></span>
-      <span class="card-copy"><small>${recipe.categoryLabel}</small><b>${recipe.name}</b><em>${recipe.subtitle}</em><span><mark>${recipe.version}</mark> ${recipe.updated} 수정</span></span>
-      <span class="card-arrow">›</span>
-    </button>
-  `).join("");
-  $$(".recipe-card").forEach((card) => card.addEventListener("click", () => {
-    state.selected = card.dataset.id;
-    state.multiplier = 1;
-    render();
-    if (window.innerWidth < 768) {
-      document.body.classList.add("mobile-detail-open");
-      window.scrollTo({ top: 0, behavior: "instant" });
-    } else if (window.innerWidth < 980) detailEl.scrollIntoView({ behavior: "smooth", block: "start" });
-  }));
+function renderCategories(){
+  const source=state.view==="recipes"?recipeItems:guideItems;
+  $("#categoryTitle").textContent=state.view==="recipes"?"레시피 카테고리":"조리 가이드 분류";
+  $("#categoryList").innerHTML=categories[state.view].map((cat,index)=>{
+    let count=cat.id==="all"?source.length:cat.favorite?source.filter(item=>favoriteSlot(itemKey(item,"recipes"))===Number(cat.id.slice(-1))).length:source.filter(item=>item.category===cat.id).length;
+    return `${cat.favorite&&index===categories[state.view].findIndex(c=>c.favorite)?'<div class="category-divider"></div>':""}<button class="category-link ${state.category===cat.id?"is-active":""}" data-category="${cat.id}"><span class="${cat.favorite?"favorite-dot":""}" style="--dot:${cat.color}">${cat.favorite?"★":""}</span><em>${cat.label}</em><b>${count}</b></button>`;
+  }).join("");
+  $$("[data-category]").forEach(button=>button.addEventListener("click",()=>{state.category=button.dataset.category;state.query="";$("#searchInput").value="";const first=filteredItems()[0];if(first){state.selected=first.item.id;state.selectedView=first.view;}render();$("#sidebar").classList.remove("is-open");}));
 }
 
-function renderDetail() {
-  const recipe = recipes.find((item) => item.id === state.selected) || filteredRecipes()[0] || recipes[0];
-  state.selected = recipe.id;
-  detailEl.innerHTML = `
-    <div class="mobile-detail-bar"><button id="mobileBack" aria-label="목록으로 돌아가기">‹</button><b>${recipe.name}</b><button id="mobileMore" aria-label="더보기">•••</button></div>
-    <div class="detail-hero">
-      <img src="${recipe.image}" alt="${recipe.name}">
-      <div class="hero-shade"></div>
-      <div class="detail-hero-copy">
-        <div class="detail-meta"><span>${recipe.categoryLabel}</span><i>·</i><span class="live-status ${recipe.statusTone}"><b></b>${recipe.status}</span></div>
-        <h2>${recipe.name}</h2><p>${recipe.subtitle}</p>
-      </div>
-      <button class="favorite" aria-label="즐겨찾기" title="즐겨찾기">♡</button>
-    </div>
-    <div class="detail-toolbar">
-      <div class="version-picker">
-        <label for="versionSelect">레시피 버전</label>
-        <select id="versionSelect">${recipe.versions.map((version) => `<option>${version.id} · ${version.date}</option>`).join("")}</select>
-      </div>
-      <button class="history-button" id="historyButton">버전 기록 <span>${recipe.versions.length}</span></button>
-    </div>
-    <div class="quick-facts">
-      <div><span>◷</span><small>준비 시간</small><b>${recipe.prep}</b></div>
-      <div><span>♨</span><small>조리 시간</small><b>${recipe.cook}</b></div>
-      <div><span>◎</span><small>기준 분량</small><b>${recipe.yield}</b></div>
-    </div>
-    <div class="detail-body">
-      <section class="recipe-section">
-        <div class="section-title"><div><span>01</span><h3>재료와 계량</h3></div><div class="batch-control"><button data-batch="0.5">½배</button><button data-batch="1" class="is-active">1배</button><button data-batch="2">2배</button><button data-batch="3">3배</button></div></div>
-        <div class="ingredient-groups">${recipe.ingredients.map((group) => `<div class="ingredient-group"><h4>${group.group}</h4><ul>${group.items.map((item) => `<li><span>${item[0]}</span><b data-value="${item[1]}" data-unit="${item[2]}">${formatAmount(item[1], item[2], state.multiplier)}</b></li>`).join("")}</ul></div>`).join("")}</div>
-      </section>
-      <section class="recipe-section">
-        <div class="section-title"><div><span>02</span><h3>조리 순서</h3></div></div>
-        <ol class="steps">${recipe.steps.map((step, index) => `<li><span class="step-number">${String(index + 1).padStart(2, "0")}</span><div><div class="step-heading"><h4>${step.title}</h4><small>${step.time}</small></div><p>${step.body}</p>${step.tip ? `<aside class="tip"><b>꾼의 팁</b>${step.tip}</aside>` : ""}${step.warning ? `<aside class="warning"><b>확인</b>${step.warning}</aside>` : ""}</div></li>`).join("")}</ol>
-      </section>
-      <section class="kitchen-note"><span>✎</span><div><small>개선 메모</small><p>${recipe.note}</p></div><button id="copyNote">복사</button></section>
-      <p class="sample-warning">※ 현재 모든 계량과 조리 내용은 UI 검토용 더미 데이터이며 실제 영업용 레시피가 아닙니다.</p>
-    </div>
-    <div class="version-panel" id="versionPanel" hidden>
-      <div class="version-panel-head"><h3>${recipe.name} 변경 기록</h3><button id="closeHistory">×</button></div>
-      <ul>${recipe.versions.map((version, index) => `<li><span>${version.id}</span><div><b>${version.note}</b><small>${version.date}${index === 0 ? " · 현재 버전" : ""}</small></div></li>`).join("")}</ul>
-    </div>`;
-
-  $$("[data-batch]").forEach((button) => button.addEventListener("click", () => {
-    state.multiplier = Number(button.dataset.batch);
-    $$("[data-batch]").forEach((item) => item.classList.toggle("is-active", item === button));
-    $$('[data-value]').forEach((item) => item.textContent = formatAmount(Number(item.dataset.value), item.dataset.unit, state.multiplier));
-  }));
-  $("#historyButton").addEventListener("click", () => $("#versionPanel").hidden = false);
-  $("#closeHistory").addEventListener("click", () => $("#versionPanel").hidden = true);
-  $("#versionSelect").addEventListener("change", (event) => showToast(`${event.target.value.split(" · ")[0]} 기록을 선택했습니다`));
-  $(".favorite").addEventListener("click", (event) => { event.currentTarget.classList.toggle("is-active"); event.currentTarget.textContent = event.currentTarget.classList.contains("is-active") ? "♥" : "♡"; });
-  $("#copyNote").addEventListener("click", async () => { await navigator.clipboard?.writeText(recipe.note); showToast("개선 메모를 복사했습니다"); });
-  $("#mobileBack").addEventListener("click", () => { document.body.classList.remove("mobile-detail-open"); window.scrollTo({ top: 0, behavior: "instant" }); });
-  $("#mobileMore").addEventListener("click", () => showToast("인쇄와 공유 기능을 준비하고 있어요"));
+function renderHeader(){
+  const recipeMode=state.view==="recipes", storeMode=recipeMode&&state.category==="store";
+  $("#pageEyebrow").textContent=recipeMode?"MY RECIPE ARCHIVE":"STAFF COOKING GUIDE";
+  $("#pageTitle").textContent=storeMode?"우리 가게의 맛을, 기록하다":recipeMode?"모든 레시피를, 한곳에":"누가 만들어도, 같은 맛";
+  $("#pageDescription").textContent=storeMode?"배합과 공정, 문제점과 개선 이력을 버전별로 관리합니다.":recipeMode?"가게 레시피부터 새로 알게 된 조리법까지 차곡차곡 기록합니다.":"직원용 표준 조리법과 손님용 포장 조리 안내를 관리합니다.";
+  $("#filterTitle b").textContent=state.query?"통합 검색 결과":(categories[state.view].find(c=>c.id===state.category)?.label||"전체");
+  $("#newRecipeButton").lastChild.textContent=recipeMode?" 새 레시피":" 새 조리 가이드";
+  $("#recipeCount").textContent=recipeItems.length;$("#guideCount").textContent=guideItems.length;
 }
 
-function render() { renderList(); renderDetail(); }
-function showToast(message) { toastEl.textContent = message; toastEl.classList.add("is-visible"); clearTimeout(showToast.timer); showToast.timer = setTimeout(() => toastEl.classList.remove("is-visible"), 2200); }
+function renderList(){
+  const visible=filteredItems();$("#visibleCount").textContent=`${visible.length}개`;$("#emptyState").hidden=visible.length>0;
+  listEl.innerHTML=visible.map(({item,view})=>{
+    const isRecipe=view==="recipes", key=itemKey(item,view), fav=favoriteSlot(key);
+    return `<button class="recipe-card ${state.selected===item.id&&state.selectedView===view?"is-active":""} ${isRecipe?"text-card":""}" data-id="${item.id}" data-library="${view}">
+      ${isRecipe?`<span class="recipe-glyph" data-kind="${item.type||"레시피"}"><i>${(item.type||"식").slice(0,1)}</i></span>`:`<span class="card-image"><img src="${item.image}" alt=""><i class="status-dot ${item.statusTone}"></i></span>`}
+      <span class="card-copy"><small>${state.query?`${view==="recipes"?"레시피 북":"조리 가이드"} · `:""}${item.categoryLabel}</small><b>${item.name}</b><em>${item.subtitle}</em><span><mark>${item.version}</mark> ${item.updated} 수정</span></span>
+      ${isRecipe?`<span class="card-favorite ${fav?"is-active":""}" data-favorite="${key}" aria-label="즐겨찾기">${fav?`★<small>${fav}</small>`:"☆"}</span>`:'<span class="card-arrow">›</span>'}
+    </button>`;
+  }).join("");
+  $$(".recipe-card").forEach(card=>card.addEventListener("click",()=>{state.selected=card.dataset.id;state.selectedView=card.dataset.library;state.multiplier=1;render();if(innerWidth<768){document.body.classList.add("mobile-detail-open");scrollTo({top:0,behavior:"instant"});}}));
+  $$("[data-favorite]").forEach(button=>button.addEventListener("click",event=>{event.stopPropagation();cycleFavorite(button.dataset.favorite);}));
+}
 
-$$('[data-category]').forEach((button) => button.addEventListener("click", () => {
-  state.category = button.dataset.category;
-  $$("[data-category]").forEach((item) => item.classList.toggle("is-active", item === button));
-  $("#filterTitle b").textContent = button.textContent.trim();
-  renderList();
-}));
+function selectedItem(){ const source=state.selectedView==="recipes"?recipeItems:guideItems;return source.find(item=>item.id===state.selected)||filteredItems()[0]?.item||currentCollection()[0]; }
+function renderDetail(){
+  const item=selectedItem(),isRecipe=state.selectedView==="recipes",key=itemKey(item,state.selectedView),fav=favoriteSlot(key),hasImages=isRecipe&&item.images?.length;
+  detailEl.classList.toggle("is-text-recipe",isRecipe&&!hasImages);
+  detailEl.innerHTML=`<div class="mobile-detail-bar"><button id="mobileBack" aria-label="목록으로 돌아가기">‹</button><b>${item.name}</b><button id="mobileMore" aria-label="더보기">•••</button></div>
+    ${hasImages?`<div class="detail-hero"><img src="${item.images[0]}" alt="${item.name}"><div class="hero-shade"></div>${heroCopy(item)}</div>`:isRecipe?`<div class="text-hero"><div class="text-hero-icon">${(item.type||"식").slice(0,1)}</div><div>${heroCopy(item,true)}</div><div class="tag-row">${(item.tags||[]).map(tag=>`<span>#${tag}</span>`).join("")}</div></div>`:`<div class="detail-hero"><img src="${item.image}" alt="${item.name}"><div class="hero-shade"></div>${heroCopy(item)}</div>`}
+    ${isRecipe?`<button class="favorite ${fav?"is-active":""}" id="favoriteButton" aria-label="즐겨찾기" title="누를 때마다 즐겨찾기 1, 2로 이동">${fav?`★<small>${fav}</small>`:"♡"}</button>`:""}
+    <div class="detail-toolbar"><div class="version-picker"><label for="versionSelect">${isRecipe?"레시피":"가이드"} 버전</label><select id="versionSelect">${item.versions.map(v=>`<option>${v.id} · ${v.date}</option>`).join("")}</select></div><button class="history-button" id="historyButton">버전 기록 <span>${item.versions.length}</span></button></div>
+    <div class="quick-facts"><div><span>◷</span><small>준비 시간</small><b>${item.prep}</b></div><div><span>♨</span><small>${isRecipe?"조리·숙성":"조리 시간"}</small><b>${item.cook}</b></div><div><span>◎</span><small>기준 분량</small><b>${item.yield}</b></div></div>
+    <div class="detail-body"><section class="recipe-section"><div class="section-title"><div><span>01</span><h3>${isRecipe?"재료와 계량":"준비 재료"}</h3></div><div class="batch-control"><button data-batch="0.5">½배</button><button data-batch="1" class="is-active">1배</button><button data-batch="2">2배</button><button data-batch="3">3배</button></div></div><div class="ingredient-groups">${item.ingredients.map(group=>`<div class="ingredient-group"><h4>${group.group}</h4><ul>${group.items.map(i=>`<li><span>${i[0]}</span><b data-value="${i[1]}" data-unit="${i[2]}">${formatAmount(i[1],i[2],1)}</b></li>`).join("")}</ul></div>`).join("")}</div></section>
+    <section class="recipe-section"><div class="section-title"><div><span>02</span><h3>${isRecipe?"만드는 순서":item.category==="customer"?"집에서 조리하는 방법":"표준 조리 순서"}</h3></div></div><ol class="steps ${item.category==="customer"?"customer-steps":""}">${item.steps.map((step,index)=>`<li><span class="step-number">${String(index+1).padStart(2,"0")}</span><div>${item.category==="customer"?`<div class="step-photo-slot"><span>▧</span><small>${step.image?"조리 과정 사진":"실제 조리 사진 등록"}</small></div>`:""}<div class="step-heading"><h4>${step.title}</h4><small>${step.time}</small></div><p>${step.body}</p>${step.tip?`<aside class="tip"><b>팁</b>${step.tip}</aside>`:""}${step.warning?`<aside class="warning"><b>확인</b>${step.warning}</aside>`:""}</div></li>`).join("")}</ol></section>
+    ${isRecipe?`<section class="optional-photo"><span>▧</span><div><b>상세 이미지</b><p>기본은 텍스트로 관리하고, 반죽 상태나 완성 기준처럼 필요한 경우에만 이미지를 등록합니다.</p></div><button id="photoInfo">이미지 추가</button></section>`:""}
+    <section class="kitchen-note"><span>✎</span><div><small>${isRecipe?"개선·실험 메모":"직원용 확인 메모"}</small><p>${item.note}</p></div><button id="copyNote">복사</button></section><p class="sample-warning">※ 현재 계량과 내용은 UI 검토용 더미 데이터입니다.</p></div>
+    <div class="version-panel" id="versionPanel" hidden><div class="version-panel-head"><h3>${item.name} 변경 기록</h3><button id="closeHistory">×</button></div><ul>${item.versions.map((v,index)=>`<li><span>${v.id}</span><div><b>${v.note}</b><small>${v.date}${index===0?" · 현재 버전":""}</small></div></li>`).join("")}</ul></div>`;
+  bindDetail(item,key);
+}
+function heroCopy(item,text=false){ return `<div class="${text?"text-hero-copy":"detail-hero-copy"}"><div class="detail-meta"><span>${item.type||item.categoryLabel}</span><i>·</i><span class="live-status ${item.statusTone}"><b></b>${item.status}</span></div><h2>${item.name}</h2><p>${item.subtitle}</p></div>`; }
+function bindDetail(item,key){
+  $$("[data-batch]").forEach(button=>button.addEventListener("click",()=>{state.multiplier=Number(button.dataset.batch);$$("[data-batch]").forEach(b=>b.classList.toggle("is-active",b===button));$$("[data-value]").forEach(el=>el.textContent=formatAmount(Number(el.dataset.value),el.dataset.unit,state.multiplier));}));
+  $("#historyButton").addEventListener("click",()=>$("#versionPanel").hidden=false);$("#closeHistory").addEventListener("click",()=>$("#versionPanel").hidden=true);$("#favoriteButton")?.addEventListener("click",()=>cycleFavorite(key));
+  $("#mobileBack").addEventListener("click",()=>{document.body.classList.remove("mobile-detail-open");scrollTo({top:0,behavior:"instant"});});$("#mobileMore").addEventListener("click",()=>showToast("공유·인쇄 메뉴를 준비하고 있어요"));
+  $("#copyNote").addEventListener("click",async()=>{await navigator.clipboard?.writeText(item.note);showToast("메모를 복사했습니다");});$("#photoInfo")?.addEventListener("click",()=>showToast("실제 입력 기능은 다음 단계에서 연결합니다"));
+}
 
-$("#searchInput").addEventListener("input", (event) => { state.query = event.target.value.trim(); renderList(); });
-$("#sortButton").addEventListener("click", (event) => { state.sortDesc = !state.sortDesc; event.currentTarget.firstChild.textContent = state.sortDesc ? "최근 수정순 " : "이름순 "; renderList(); });
-$("#printButton").addEventListener("click", () => window.print());
-$("#menuButton").addEventListener("click", () => $("#sidebar").classList.toggle("is-open"));
-$("#newRecipeButton").addEventListener("click", () => $("#modal").hidden = false);
-$("#modalClose").addEventListener("click", () => $("#modal").hidden = true);
-$("#modalOkay").addEventListener("click", () => $("#modal").hidden = true);
-$("#modal").addEventListener("click", (event) => { if (event.target === event.currentTarget) event.currentTarget.hidden = true; });
-$$('[data-view]').forEach((button) => button.addEventListener("click", () => { if (button.dataset.view !== "recipes") showToast("UI 확정 후 다음 단계에서 열립니다"); }));
-document.addEventListener("keydown", (event) => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); $("#searchInput").focus(); } if (event.key === "Escape") $("#modal").hidden = true; });
-$$("[data-mobile-toast]").forEach((button) => button.addEventListener("click", () => showToast("UI 확정 후 다음 단계에서 열립니다")));
-$("[data-mobile-menu]").addEventListener("click", () => $("#sidebar").classList.toggle("is-open"));
+function switchView(view){
+  if(view==="lab"){openLab();return;}
+  state.view=view;state.selectedView=view;state.category=view==="recipes"?"store":"all";state.query="";$("#searchInput").value="";$("#searchInput").disabled=false;$("#searchInput").placeholder="레시피·재료·조리법 통합 검색";state.selected=currentCollection()[0].id;document.body.classList.remove("mobile-detail-open");$("#archiveView").hidden=false;$("#labView").hidden=true;$$('[data-view]').forEach(b=>b.classList.toggle("is-active",b.dataset.view===view));$$('[data-mobile-view]').forEach(b=>b.classList.toggle("is-active",b.dataset.mobileView===view));render();
+}
+function openLab(){state.view="lab";document.body.classList.remove("mobile-detail-open");$("#archiveView").hidden=true;$("#labView").hidden=false;$("#pageEyebrow").textContent="AI KITCHEN LAB";$("#pageTitle").textContent="함께 연구하고, 기록하다";$("#pageDescription").textContent="레시피 개선부터 신메뉴 테스트 계획서까지 한 흐름으로 관리합니다.";$("#newRecipeButton").lastChild.textContent=" 새 개발 계획";$("#searchInput").value="";$("#searchInput").disabled=true;$("#searchInput").placeholder="개발실에서는 검색을 사용하지 않습니다";$("#categoryTitle").textContent="메뉴 개발 도구";$("#categoryList").innerHTML='<button class="category-link is-active"><span style="--dot:#eb5d43"></span><em>개발실 홈</em></button><button class="category-link"><span style="--dot:#5b9a81"></span><em>진행 중 테스트</em></button><button class="category-link"><span style="--dot:#826eb4"></span><em>완료된 계획서</em></button>';$$('[data-view]').forEach(b=>b.classList.toggle("is-active",b.dataset.view==="lab"));$$('[data-mobile-view]').forEach(b=>b.classList.toggle("is-active",b.dataset.mobileView==="lab"));}
+function render(){renderCategories();renderHeader();renderList();renderDetail();}
+function showToast(message){toastEl.textContent=message;toastEl.classList.add("is-visible");clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toastEl.classList.remove("is-visible"),2200);}
 
-$("#today").textContent = new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric", weekday: "short" }).format(new Date());
-render();
+$("#searchInput").placeholder="레시피·재료·조리법 통합 검색";$("#searchInput").addEventListener("input",event=>{state.query=event.target.value.trim();renderHeader();renderList();});$("#sortButton").addEventListener("click",event=>{state.sortDesc=!state.sortDesc;event.currentTarget.firstChild.textContent=state.sortDesc?"최근 수정순 ":"이름순 ";renderList();});
+$("#printButton").addEventListener("click",()=>print());$("#menuButton").addEventListener("click",()=>$("#sidebar").classList.toggle("is-open"));$("#newRecipeButton").addEventListener("click",()=>$("#modal").hidden=false);$("#modalClose").addEventListener("click",()=>$("#modal").hidden=true);$("#modalOkay").addEventListener("click",()=>$("#modal").hidden=true);$("#modal").addEventListener("click",event=>{if(event.target===event.currentTarget)event.currentTarget.hidden=true;});
+$$('[data-view]').forEach(button=>button.addEventListener("click",()=>switchView(button.dataset.view)));$$('[data-mobile-view]').forEach(button=>button.addEventListener("click",()=>switchView(button.dataset.mobileView)));$("[data-mobile-menu]").addEventListener("click",()=>$("#sidebar").classList.toggle("is-open"));$$('[data-lab-action]').forEach(button=>button.addEventListener("click",()=>showToast("실제 레시피 입력 후 AI 개발 기능을 연결합니다")));
+document.addEventListener("keydown",event=>{if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==="k"){event.preventDefault();$("#searchInput").focus();}if(event.key==="Escape")$("#modal").hidden=true;});$("#today").textContent=new Intl.DateTimeFormat("ko-KR",{month:"long",day:"numeric",weekday:"short"}).format(new Date());render();

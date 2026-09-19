@@ -17,17 +17,14 @@
       </a>
 
       <nav class="main-nav" aria-label="주 메뉴">
-        <button class="nav-item is-active" data-view="recipes"><span class="nav-icon">⌂</span><span>레시피 보관함</span><b id="recipeCount">0</b></button>
-        <button class="nav-item" data-view="ingredients"><span class="nav-icon">◇</span><span>재료 보관함</span><b>12</b></button>
-        <button class="nav-item" data-view="lab"><span class="nav-icon">✦</span><span>메뉴 개발실</span><i>준비중</i></button>
+        <button class="nav-item is-active" data-view="recipes"><span class="nav-icon">⌂</span><span>레시피 관리</span><b id="recipeCount">0</b></button>
+        <button class="nav-item" data-view="lab"><span class="nav-icon">✦</span><span>AI 메뉴 개발실</span><i>준비중</i></button>
+        <button class="nav-item" data-view="guides"><span class="nav-icon">▤</span><span>조리 가이드</span><b id="guideCount">0</b></button>
       </nav>
 
       <div class="sidebar-section">
-        <p>메뉴 분류</p>
-        <button class="category-link is-active" data-category="all"><span style="--dot:#eb5d43"></span>전체 메뉴</button>
-        <button class="category-link" data-category="mandu"><span style="--dot:#ed9b45"></span>만두</button>
-        <button class="category-link" data-category="noodle"><span style="--dot:#5b9a81"></span>면 요리</button>
-        <button class="category-link" data-category="special"><span style="--dot:#826eb4"></span>별미 · 사이드</button>
+        <p id="categoryTitle">레시피 카테고리</p>
+        <div id="categoryList"></div>
       </div>
 
       <div class="sidebar-foot">
@@ -49,14 +46,14 @@
 
       <section class="workspace">
         <div class="page-heading">
-          <div><p class="eyebrow">KITCHEN NOTE</p><h1>오늘도, 한결같은 맛</h1><p>우리 가게의 레시피와 변화를 차곡차곡 기록합니다.</p></div>
+        <div><p class="eyebrow" id="pageEyebrow">MY RECIPE ARCHIVE</p><h1 id="pageTitle">모든 레시피를, 한곳에</h1><p id="pageDescription">가게 레시피부터 새로 알게 된 조리법까지 차곡차곡 기록합니다.</p></div>
           <div class="heading-actions">
             <span class="sample-pill">샘플 레시피</span>
             <button class="primary-button" id="newRecipeButton"><span>＋</span> 새 레시피</button>
           </div>
         </div>
 
-        <div class="content-grid">
+        <div class="content-grid" id="archiveView">
           <section class="recipe-library" aria-label="레시피 목록">
             <div class="filter-row">
               <div id="filterTitle"><b>전체 레시피</b><span id="visibleCount"></span></div>
@@ -68,14 +65,24 @@
 
           <article class="recipe-detail" id="recipeDetail" aria-live="polite"></article>
         </div>
+        <section class="lab-view" id="labView" hidden>
+          <div class="lab-intro"><span>✦</span><div><small>AI KITCHEN LAB</small><h2>레시피를 더 맛있게, 아이디어를 실제 메뉴로</h2><p>현재 레시피와 보유 재료를 바탕으로 개선안을 만들고 테스트 계획까지 기록하는 공간입니다.</p></div></div>
+          <div class="lab-grid">
+            <button class="lab-card" data-lab-action><span>01</span><i>↗</i><b>레시피 개선</b><p>현재 문제점과 원하는 결과를 입력해 배합·공정 개선안을 만듭니다.</p><em>문제 진단 · 개선 버전 · 비교 기록</em></button>
+            <button class="lab-card" data-lab-action><span>02</span><i>◇</i><b>보유 재료 분석</b><p>자주 쓰는 재료와 남는 재료를 파악해 활용도를 높입니다.</p><em>공통 재료 · 원가 · 재고 활용</em></button>
+            <button class="lab-card accent" data-lab-action><span>03</span><i>✦</i><b>신메뉴 개발</b><p>가게 재료 안에서 새로운 메뉴 후보와 조합을 제안받습니다.</p><em>아이디어 · 시제품 · 평가</em></button>
+            <button class="lab-card" data-lab-action><span>04</span><i>▤</i><b>테스트 계획서</b><p>목표, 변수, 평가 기준과 결과를 한 장의 계획서로 관리합니다.</p><em>실험 계획 · 결과 · 다음 단계</em></button>
+          </div>
+          <div class="lab-roadmap"><div><small>DEVELOPMENT FLOW</small><h3>아이디어가 정식 레시피가 되는 과정</h3></div><ol><li><b>01</b><span>문제·목표 정의</span></li><li><b>02</b><span>AI 개선안</span></li><li><b>03</b><span>주방 테스트</span></li><li><b>04</b><span>버전 확정</span></li></ol></div>
+        </section>
       </section>
     </main>
   </div>
 
   <nav class="mobile-tabs" aria-label="모바일 주 메뉴">
-    <button class="is-active"><span>⌂</span>레시피</button>
-    <button data-mobile-toast><span>◇</span>재료</button>
-    <button data-mobile-toast><span>✦</span>개발실</button>
+    <button class="is-active" data-mobile-view="recipes"><span>⌂</span>레시피</button>
+    <button data-mobile-view="lab"><span>✦</span>개발실</button>
+    <button data-mobile-view="guides"><span>▤</span>조리가이드</button>
     <button data-mobile-menu><span>☰</span>더보기</button>
   </nav>
 
@@ -85,11 +92,12 @@
       <button class="modal-close" id="modalClose" aria-label="닫기">×</button>
       <span class="modal-icon">✦</span>
       <h2 id="modalTitle">실제 레시피를 받을 준비가 됐어요</h2>
-      <p>UI 확정 후 메뉴별 재료, 계량, 공정, 문제점을 알려주시면 실제 데이터로 교체하고 개선 이력을 버전별로 쌓아갈 수 있습니다.</p>
+      <p>UI 확정 후 레시피나 조리 가이드의 재료, 계량, 과정, 사진을 등록하고 변경 이력을 버전별로 쌓아갈 수 있습니다.</p>
       <button class="primary-button" id="modalOkay">확인</button>
     </div>
   </div>
 
+  <script src="recipe-data.js"></script>
   <script src="data.js"></script>
   <script src="app.js"></script>
 </body>
