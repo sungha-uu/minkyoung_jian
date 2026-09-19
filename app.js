@@ -70,15 +70,14 @@ function renderHeader(){
 function renderList(){
   const visible=filteredItems();$("#visibleCount").textContent=`${visible.length}개`;$("#emptyState").hidden=visible.length>0;
   listEl.innerHTML=visible.map(({item,view})=>{
-    const isRecipe=view==="recipes", key=itemKey(item,view), fav=favoriteSlot(key);
+    const isRecipe=view==="recipes";
     return `<button class="recipe-card ${state.selected===item.id&&state.selectedView===view?"is-active":""} ${isRecipe?"text-card":""}" data-id="${item.id}" data-library="${view}">
-      ${isRecipe?`<span class="recipe-glyph" data-kind="${item.type||"레시피"}"><i>${(item.type||"식").slice(0,1)}</i></span>`:`<span class="card-image"><img src="${item.image}" alt=""><i class="status-dot ${item.statusTone}"></i></span>`}
-      <span class="card-copy"><small>${state.query?`${view==="recipes"?"레시피 북":"조리 가이드"} · `:""}${item.categoryLabel}</small><b>${item.name}</b><em>${item.subtitle}</em><span><mark>${item.version}</mark> ${item.updated} 수정</span></span>
-      ${isRecipe?`<span class="card-favorite ${fav?"is-active":""}" data-favorite="${key}" aria-label="즐겨찾기">${fav?`★<small>${fav}</small>`:"☆"}</span>`:'<span class="card-arrow">›</span>'}
+      ${isRecipe?"":`<span class="card-image"><img src="${item.image}" alt=""><i class="status-dot ${item.statusTone}"></i></span>`}
+      ${isRecipe?`<span class="recipe-row-copy"><b>${item.name}</b><span class="version-list">${item.versions.slice(0,3).map((version,index)=>`<mark class="${index===0?"current":""}">${version.id}</mark>`).join("")}<time>${item.updated}</time></span></span>`:`<span class="card-copy"><small>${item.categoryLabel}</small><b>${item.name}</b><em>${item.subtitle}</em><span><mark>${item.version}</mark> ${item.updated} 수정</span></span>`}
+      <span class="card-arrow">›</span>
     </button>`;
   }).join("");
   $$(".recipe-card").forEach(card=>card.addEventListener("click",()=>{state.selected=card.dataset.id;state.selectedView=card.dataset.library;state.multiplier=1;render();if(innerWidth<768){document.body.classList.add("mobile-detail-open");scrollTo({top:0,behavior:"instant"});}}));
-  $$("[data-favorite]").forEach(button=>button.addEventListener("click",event=>{event.stopPropagation();cycleFavorite(button.dataset.favorite);}));
 }
 
 function selectedItem(){ const source=state.selectedView==="recipes"?recipeItems:guideItems;return source.find(item=>item.id===state.selected)||filteredItems()[0]?.item||currentCollection()[0]; }
