@@ -5407,4 +5407,23 @@
     const patch = verified[item.id] || verified[item.name];
     if (patch) Object.assign(item, patch);
   });
+
+  // 원본 이미지가 하나의 조리 블록으로만 구성된 메뉴는
+  // 의미상 전처리 단계가 있더라도 별도의 "준비 과정"으로 나누지 않는다.
+  // 두 단계가 실제로 분리된 원본은 기존 phase 값을 그대로 유지한다.
+  const cookOnlyIds = new Set([
+    "school-002", "school-011", "school-015", "school-018", "school-035",
+    "school-046", "school-063", "school-064", "school-086", "school-091",
+    "school-097", "school-109", "school-112", "school-126", "school-130",
+    "school-138", "school-142", "school-143", "school-153", "school-159",
+    "school-160", "school-167", "school-168", "school-179", "school-182",
+    "school-189", "school-196", "school-204", "school-208", "school-216",
+    "school-219", "school-224", "school-226", "school-228", "school-230",
+    "school-243", "school-244", "school-245"
+  ]);
+  (window.SCHOOL_RECIPE_DATA || []).forEach(item => {
+    if (!cookOnlyIds.has(item.id) || !Array.isArray(item.steps)) return;
+    item.steps = item.steps.map(step => ({ ...step, phase: "cook" }));
+    item.prep = "";
+  });
 })();

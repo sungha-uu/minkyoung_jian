@@ -52,8 +52,9 @@ function formatAmount(value,unit,multiplier=1){
 
 function stepPhase(step){
   if(step?.phase==="prep"||step?.phase==="cook")return step.phase;
-  const text=`${step?.title||""} ${step?.body||""}`;
-  return /준비|전처리|손질|세척|해동|불리|밑간|분리|윗물 제거/.test(text)?"prep":"cook";
+  // 준비 과정은 원본 레시피에서 명시적으로 분리된 경우에만 표시합니다.
+  // 단계 메모의 문장에 '준비'가 들어간 것만으로 임의 분리하지 않습니다.
+  return "cook";
 }
 function splitSteps(item){
   if(Array.isArray(item.prepSteps)||Array.isArray(item.cookSteps))return{prep:item.prepSteps||[],cook:item.cookSteps||[]};
