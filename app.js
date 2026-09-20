@@ -1,6 +1,7 @@
-const recipeItems = window.RECIPE_DATA;
+const recipeItems = [...window.RECIPE_DATA.filter(item=>item.id!=="school-tteokbokki"),...(window.SCHOOL_RECIPE_DATA||[])];
 const guideItems = window.GUIDE_DATA;
 const FAVORITES_KEY = "kkun-recipe-favorites-v1";
+const SCHOOL_IMAGE_REMOVALS_KEY = "minkyoung-school-image-removals-v1";
 const APP_HISTORY_KEY = "minkyoung-kitchen";
 const categories = {
   recipes: [
@@ -21,7 +22,7 @@ const categories = {
   ]
 };
 
-const state = { view:"recipes", category:"store", query:"", selected:recipeItems[0].id, selectedView:"recipes", multiplier:1, sortDesc:true, favorites:loadFavorites() };
+const state = { view:"recipes", category:"store", query:"", selected:recipeItems[0].id, selectedView:"recipes", multiplier:1, sortDesc:true, favorites:loadFavorites(), removedSchoolImages:loadRemovedSchoolImages() };
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const listEl = $("#recipeList");
@@ -31,13 +32,17 @@ const exitModalEl = $("#exitModal");
 let exitConfirmed = false;
 
 function loadFavorites(){ try{return JSON.parse(localStorage.getItem(FAVORITES_KEY))||{}}catch{return{}} }
+function loadRemovedSchoolImages(){ try{return JSON.parse(localStorage.getItem(SCHOOL_IMAGE_REMOVALS_KEY))||{}}catch{return{}} }
 function saveFavorites(){ localStorage.setItem(FAVORITES_KEY,JSON.stringify(state.favorites)); }
+function saveRemovedSchoolImages(){ localStorage.setItem(SCHOOL_IMAGE_REMOVALS_KEY,JSON.stringify(state.removedSchoolImages)); }
+function hasVisibleOriginal(item){ return item.category==="school"&&Boolean(item.originalImage)&&!state.removedSchoolImages[item.id]; }
+function removeSchoolImage(id){ const item=recipeItems.find(candidate=>candidate.id===id); if(!item||!hasVisibleOriginal(item))return; if(!window.confirm("검수가 끝난 원본 이미지를 대시보드에서 삭제할까요?\n\n레시피 텍스트는 유지됩니다."))return; state.removedSchoolImages[id]=true;saveRemovedSchoolImages();renderDetail();showToast("원본 이미지를 삭제했습니다"); }
 function favoriteSlot(id){ return state.favorites[id]||0; }
 function cycleFavorite(id){ const next=(favoriteSlot(id)+1)%4; if(next)state.favorites[id]=next;else delete state.favorites[id]; saveFavorites(); showToast(next?`즐겨찾기 ${next}에 저장했습니다`:"즐겨찾기를 해제했습니다"); render(); }
 function currentCollection(){ return state.view==="recipes"?recipeItems:guideItems; }
 function itemKey(item,view){ return `${view}:${item.id}`; }
 function starIcon(active=false){return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.7l2.84 5.76 6.36.92-4.6 4.49 1.08 6.33L12 17.21 6.32 20.2l1.08-6.33-4.6-4.49 6.36-.92L12 2.7z" ${active?'fill="currentColor"':'fill="none"'} stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`;}
-function formatAmount(value,unit,multiplier){ const amount=value*multiplier; return `${Number.isInteger(amount)?amount.toLocaleString("ko-KR"):amount.toLocaleString("ko-KR",{maximumFractionDigits:1})}${unit}`; }
+function formatAmount(value,unit,multiplier){ if(value===null||value===undefined||value===""||Number.isNaN(Number(value)))return unit||""; const amount=Number(value)*multiplier; return `${Number.isInteger(amount)?amount.toLocaleString("ko-KR"):amount.toLocaleString("ko-KR",{maximumFractionDigits:1})}${unit&&unit!=="원문"?unit:""}`; }
 function searchableText(item){ return [item.name,item.subtitle,item.categoryLabel,item.type,item.note,...(item.tags||[]),...item.ingredients.flatMap(g=>g.items.map(i=>i[0])),...item.steps.flatMap(s=>[s.title,s.body,s.tip||"",s.warning||""])].join(" ").toLowerCase(); }
 
 function filteredItems(){
@@ -89,10 +94,11 @@ function renderList(){
 
 function selectedItem(){ const source=state.selectedView==="recipes"?recipeItems:guideItems;return source.find(item=>item.id===state.selected)||filteredItems()[0]?.item||currentCollection()[0]; }
 function renderDetail(){
-  const item=selectedItem(),isRecipe=state.selectedView==="recipes",key=itemKey(item,state.selectedView),fav=favoriteSlot(key),hasImages=isRecipe&&item.images?.length;
+  const item=selectedItem(),isRecipe=state.selectedView==="recipes",key=itemKey(item,state.selectedView),fav=favoriteSlot(key),hasImages=isRecipe&&item.images?.length,showOriginal=hasVisibleOriginal(item);
   detailEl.classList.toggle("is-text-recipe",isRecipe&&!hasImages);
   detailEl.innerHTML=`<div class="mobile-detail-bar"><button id="mobileBack" aria-label="목록으로 돌아가기">‹</button><b>${item.name}</b><button id="mobileMore" aria-label="더보기">•••</button></div>
     ${hasImages?`<div class="detail-hero"><img src="${item.images[0]}" alt="${item.name}"><div class="hero-shade"></div>${heroCopy(item)}</div>`:isRecipe?`<div class="text-hero">${heroCopy(item,true)}</div>`:`<div class="detail-hero"><img src="${item.image}" alt="${item.name}"><div class="hero-shade"></div>${heroCopy(item)}</div>`}
+    ${showOriginal?`<section class="original-image-panel"><div class="original-image-head"><div><b>원본 레시피 이미지</b><small>${item.originalPattern||"원본 자료"} · 더블체크 후 삭제 가능</small></div><button id="removeOriginalImage" type="button">이미지 삭제</button></div><img src="${item.originalImage}" alt="${item.name} 원본 레시피 이미지" loading="lazy"></section>`:""}
     ${isRecipe?`<button class="favorite fav-${fav}" id="favoriteButton" aria-label="${fav?`즐겨찾기 ${fav}`:"즐겨찾기 꺼짐"}" title="클릭할 때마다 노랑, 주황, 빨강, 꺼짐으로 변경">${starIcon(Boolean(fav))}</button>`:""}
     <div class="detail-toolbar"><div class="version-picker"><label for="versionSelect">${isRecipe?"레시피":"가이드"} 버전</label><select id="versionSelect">${item.versions.map(v=>`<option>${v.id} · ${v.date}</option>`).join("")}</select></div><button class="history-button" id="historyButton">버전 기록 <span>${item.versions.length}</span></button></div>
     <div class="quick-facts"><div><span>◷</span><small>준비 시간</small><b>${item.prep}</b></div><div><span>♨</span><small>${isRecipe?"조리·숙성":"조리 시간"}</small><b>${item.cook}</b></div><div><span>◎</span><small>기준 분량</small><b>${item.yield}</b></div></div>
@@ -108,7 +114,7 @@ function bindDetail(item,key){
   $$("[data-batch]").forEach(button=>button.addEventListener("click",()=>{state.multiplier=Number(button.dataset.batch);$$("[data-batch]").forEach(b=>b.classList.toggle("is-active",b===button));$$("[data-value]").forEach(el=>el.textContent=formatAmount(Number(el.dataset.value),el.dataset.unit,state.multiplier));}));
   $("#historyButton").addEventListener("click",()=>$("#versionPanel").hidden=false);$("#closeHistory").addEventListener("click",()=>$("#versionPanel").hidden=true);$("#favoriteButton")?.addEventListener("click",()=>cycleFavorite(key));
   $("#mobileBack").addEventListener("click",()=>history.back());$("#mobileMore").addEventListener("click",()=>showToast("공유·인쇄 메뉴를 준비하고 있어요"));
-  $("#copyNote").addEventListener("click",async()=>{await navigator.clipboard?.writeText(item.note);showToast("메모를 복사했습니다");});$("#photoInfo")?.addEventListener("click",()=>showToast("실제 입력 기능은 다음 단계에서 연결합니다"));
+  $("#copyNote").addEventListener("click",async()=>{await navigator.clipboard?.writeText(item.note);showToast("메모를 복사했습니다");});$("#photoInfo")?.addEventListener("click",()=>showToast("실제 입력 기능은 다음 단계에서 연결합니다"));$("#removeOriginalImage")?.addEventListener("click",()=>removeSchoolImage(item.id));
 }
 
 function navigationState(ui="list"){return{app:APP_HISTORY_KEY,ui,view:state.view,category:state.category,selected:state.selected,selectedView:state.selectedView};}
