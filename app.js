@@ -22,7 +22,7 @@ const categories = {
   ]
 };
 
-const state = { view:"recipes", category:"store", query:"", selected:recipeItems[0].id, selectedView:"recipes", multiplier:1, sortDesc:true, favorites:loadFavorites(), removedSchoolImages:loadRemovedSchoolImages() };
+const state = { view:"recipes", category:"store", query:"", selected:recipeItems[0].id, selectedView:"recipes", multiplier:1, sortDesc:true, listScrollY:0, favorites:loadFavorites(), removedSchoolImages:loadRemovedSchoolImages() };
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const listEl = $("#recipeList");
@@ -110,8 +110,22 @@ function detailImages(item){
   if(hasVisibleOriginal(item))images.push({src:item.originalImage,label:"원본 레시피 이미지",original:true});
   const supplemental=[...(item.images||[])];
   if(item.image&&!supplemental.includes(item.image))supplemental.push(item.image);
-  supplemental.forEach((src,index)=>images.push({src,label:index===0?"상세 이미지":"추가 이미지",original:false}));
+  supplemental.forEach((src,index)=>images.push({src,label:"이미지",original:false}));
   return images;
+}
+
+function detailNeighbors(){
+  const visible=filteredItems().filter(({view})=>view===state.selectedView);
+  const fallback=currentCollection().map(item=>({item,view:state.selectedView}));
+  const source=visible.length?visible:fallback;
+  const index=source.findIndex(({item})=>item.id===state.selected);
+  return {prev:index>0?source[index-1]:null,next:index>=0&&index<source.length-1?source[index+1]:null};
+}
+function renderDetailNavigation(){
+  const {prev,next}=detailNeighbors();
+  if(!prev&&!next)return "";
+  const button=(entry,direction)=>entry?`<button class="detail-nav-button" type="button" data-detail-nav="${direction}" data-id="${entry.item.id}" data-view="${entry.view}"><small>${direction==="prev"?"이전 메뉴":"다음 메뉴"}</small><b>${entry.item.name}</b><span>${direction==="prev"?"‹":"›"}</span></button>`:`<button class="detail-nav-button is-disabled" type="button" disabled><small>${direction==="prev"?"이전 메뉴":"다음 메뉴"}</small><b>없음</b><span>${direction==="prev"?"‹":"›"}</span></button>`;
+  return `<nav class="detail-navigation" aria-label="메뉴 이동">${button(prev,"prev")}${button(next,"next")}</nav>`;
 }
 function searchableText(item){ return [item.name,item.subtitle,item.categoryLabel,item.type,item.note,...(item.tags||[]),...item.ingredients.flatMap(g=>g.items.map(i=>i[0])),...item.steps.flatMap(s=>[s.title,s.body,s.tip||"",s.warning||""])].join(" ").toLowerCase(); }
 
@@ -158,7 +172,7 @@ function renderList(){
       <span class="card-arrow">›</span>
     </article>`;
   }).join("");
-  $$(".recipe-card").forEach(card=>{const open=()=>{state.selected=card.dataset.id;state.selectedView=card.dataset.library;state.multiplier=1;render();if(innerWidth<768){document.body.classList.add("mobile-detail-open");scrollTo({top:0,behavior:"instant"});writeHistory("detail","push");}};card.addEventListener("click",open);card.addEventListener("keydown",event=>{if(event.target===card&&["Enter"," "].includes(event.key)){event.preventDefault();open();}});});
+  $$(".recipe-card").forEach(card=>{const open=()=>{const listScrollY=window.scrollY;state.listScrollY=listScrollY;state.selected=card.dataset.id;state.selectedView=card.dataset.library;state.multiplier=1;if(innerWidth<768)history.replaceState(navigationState("list",{scrollY:listScrollY}),"",location.href);render();if(innerWidth<768){document.body.classList.add("mobile-detail-open");scrollTo({top:0,behavior:"instant"});writeHistory("detail","push",{scrollY:0});}};card.addEventListener("click",open);card.addEventListener("keydown",event=>{if(event.target===card&&["Enter"," "].includes(event.key)){event.preventDefault();open();}});});
   $$("[data-favorite]").forEach(button=>{const activate=event=>{event.stopPropagation();if(event.type==="keydown"&&!['Enter',' '].includes(event.key))return;event.preventDefault();cycleFavorite(button.dataset.favorite);};button.addEventListener("click",activate);button.addEventListener("keydown",activate);});
 }
 
@@ -174,7 +188,7 @@ function legacyRenderDetail(){
     <div class="quick-facts"><div><span>◷</span><small>준비 시간</small><b>${item.prep}</b></div><div><span>♨</span><small>${isRecipe?"조리·숙성":"조리 시간"}</small><b>${item.cook}</b></div><div><span>◎</span><small>기준 분량</small><b>${item.yield}</b></div></div>
     <div class="detail-body"><section class="recipe-section"><div class="section-title"><div><span>01</span><h3>${isRecipe?"재료와 계량":"준비 재료"}</h3></div><div class="batch-control"><button data-batch="0.5">½배</button><button data-batch="1" class="is-active">1배</button><button data-batch="2">2배</button><button data-batch="3">3배</button></div></div><div class="ingredient-groups">${item.ingredients.map(group=>`<div class="ingredient-group"><h4>${group.group}</h4><ul>${group.items.map(i=>`<li><span>${i[0]}</span><b data-value="${i[1]}" data-unit="${i[2]}">${formatAmount(i[1],i[2],1)}</b></li>`).join("")}</ul></div>`).join("")}</div></section>
     <section class="recipe-section"><div class="section-title"><div><span>02</span><h3>${isRecipe?"만드는 순서":item.category==="customer"?"집에서 조리하는 방법":"표준 조리 순서"}</h3></div></div><ol class="steps ${item.category==="customer"?"customer-steps":""}">${item.steps.map((step,index)=>`<li><span class="step-number">${String(index+1).padStart(2,"0")}</span><div>${item.category==="customer"?`<div class="step-photo-slot"><span>▧</span><small>${step.image?"조리 과정 사진":"실제 조리 사진 등록"}</small></div>`:""}<div class="step-heading"><h4>${step.title}</h4><small>${step.time}</small></div><p>${step.body}</p>${step.tip?`<aside class="tip"><b>팁</b>${step.tip}</aside>`:""}${step.warning?`<aside class="warning"><b>확인</b>${step.warning}</aside>`:""}</div></li>`).join("")}</ol></section>
-    ${isRecipe?`<section class="optional-photo"><span>▧</span><div><b>상세 이미지</b><p>기본은 텍스트로 관리하고, 반죽 상태나 완성 기준처럼 필요한 경우에만 이미지를 등록합니다.</p></div><button id="photoInfo">이미지 추가</button></section>`:""}
+    ${isRecipe?`<section class="optional-photo"><span>▧</span><div><b>이미지</b><p>기본은 텍스트로 관리하고, 반죽 상태나 완성 기준처럼 필요한 경우에만 이미지를 등록합니다.</p></div><button id="photoInfo">이미지 추가</button></section>`:""}
     <section class="kitchen-note"><span>✎</span><div><small>${isRecipe?"개선·실험 메모":"직원용 확인 메모"}</small><p>${item.note}</p></div><button id="copyNote">복사</button></section><p class="sample-warning">※ 현재 계량과 내용은 UI 검토용 더미 데이터입니다.</p></div>
     <div class="version-panel" id="versionPanel" hidden><div class="version-panel-head"><h3>${item.name} 변경 기록</h3><button id="closeHistory">×</button></div><ul>${item.versions.map((v,index)=>`<li><span>${v.id}</span><div><b>${v.note}</b><small>${v.date}${index===0?" · 현재 버전":""}</small></div></li>`).join("")}</ul></div>`;
   bindDetail(item,key);
@@ -204,7 +218,7 @@ function renderDetail(){
     <div class="detail-toolbar"><div class="version-picker"><label for="versionSelect">버전</label><select id="versionSelect">${(item.versions||[]).map(v=>`<option value="${v.id}">${v.id} · ${v.date}</option>`).join("")}</select></div><button class="history-button" id="historyButton">버전 기록 <span>${(item.versions||[]).length}</span></button></div>
     <div class="detail-body"><section class="recipe-section ingredient-section"><div class="section-title"><div><span>01</span><h3>재료와 계량</h3></div><label class="batch-select" for="batchSelect"><span>배율</span><select id="batchSelect">${multiplierOptions}</select></label></div><div class="ingredient-table-wrap"><table class="ingredient-table"><thead><tr><th scope="col">재료명</th><th scope="col">계량</th><th scope="col">단위</th></tr></thead><tbody>${aiPending?pendingIngredients:ingredientRows(item,state.multiplier)}</tbody></table></div></section>
     ${aiPending?pendingProcess:`${renderProcessSection("준비 과정",steps.prep,2)}${renderProcessSection("조리 과정",steps.cook,processNumber)}`}
-    ${images.length?`<section class="recipe-section detail-images-section"><div class="section-title"><div><span>${String(imageNumber).padStart(2,"0")}</span><h3>상세 이미지</h3></div></div><div class="detail-images">${images.map(image=>`<figure class="detail-image-card"><div class="detail-image-head"><figcaption>${image.label}</figcaption>${image.original?`<button id="removeOriginalImage" type="button">이미지 삭제</button>`:""}</div><img src="${image.src}" alt="${item.name} ${image.label}" loading="lazy"></figure>`).join("")}</div></section>`:""}<p class="sample-warning">※ 레시피 내용은 버전별로 기록하고, 실제 검수 후 확정합니다.</p></div>
+    ${images.length?`<section class="recipe-section detail-images-section"><div class="section-title"><div><span>${String(imageNumber).padStart(2,"0")}</span><h3>이미지</h3></div></div><div class="detail-images">${images.map(image=>`<figure class="detail-image-card"><div class="detail-image-head"><figcaption>${image.label}</figcaption>${image.original?`<button id="removeOriginalImage" type="button">이미지 삭제</button>`:""}</div><img src="${image.src}" alt="${item.name} ${image.label}" loading="lazy"></figure>`).join("")}</div></section>`:""}${renderDetailNavigation()}<p class="sample-warning">※ 레시피 내용은 버전별로 기록하고, 실제 검수 후 확정합니다.</p></div>
     <div class="version-panel" id="versionPanel" hidden><div class="version-panel-head"><h3>${item.name} 변경 기록</h3><button id="closeHistory">×</button></div><ul>${(item.versions||[]).map((v,index)=>`<li><span>${v.id}</span><div><b>${v.note}</b><small>${v.date}${index===0?" · 현재 버전":""}</small></div></li>`).join("")}</ul></div>`;
   bindDetail(item,key);
 }
@@ -213,24 +227,37 @@ function bindDetail(item,key){
   $("#historyButton").addEventListener("click",()=>$("#versionPanel").hidden=false);$("#closeHistory").addEventListener("click",()=>$("#versionPanel").hidden=true);$("#favoriteButton")?.addEventListener("click",()=>cycleFavorite(key));
   $("#mobileBack").addEventListener("click",()=>history.back());$("#mobileMore").addEventListener("click",()=>showToast("공유·인쇄 메뉴를 준비하고 있어요"));
   $("#removeOriginalImage")?.addEventListener("click",()=>removeOriginalImage(item.id));
+  $$('[data-detail-nav]').forEach(button=>button.addEventListener("click",()=>navigateDetail(button.dataset.id,button.dataset.view)));
 }
 
-function navigationState(ui="list"){return{app:APP_HISTORY_KEY,ui,view:state.view,category:state.category,selected:state.selected,selectedView:state.selectedView};}
-function writeHistory(ui,mode="push"){history[mode==="replace"?"replaceState":"pushState"](navigationState(ui),"",location.href);}
+function navigateDetail(id,view){
+  if(!id)return;
+  state.selected=id;state.selectedView=view||state.selectedView;state.multiplier=1;state.listScrollY=0;
+  render();
+  if(innerWidth<768)document.body.classList.add("mobile-detail-open");
+  scrollTo({top:0,behavior:"instant"});
+  writeHistory("detail","push",{scrollY:0});
+}
+
+function navigationState(ui="list",extra={}){return{app:APP_HISTORY_KEY,ui,view:state.view,category:state.category,selected:state.selected,selectedView:state.selectedView,scrollY:extra.scrollY??state.listScrollY??0};}
+function writeHistory(ui,mode="push",extra={}){history[mode==="replace"?"replaceState":"pushState"](navigationState(ui,extra),"",location.href);}
 function showExitConfirm(){exitModalEl.hidden=false;requestAnimationFrame(()=>$("#exitCancel").focus());}
 function cancelExit(){exitModalEl.hidden=true;history.replaceState(navigationState("list"),"",location.href);}
 function confirmExit(){exitModalEl.hidden=true;exitConfirmed=true;history.back();}
 function restoreHistory(nav){
   if(!nav)return;
+  const targetScroll=nav.ui==="list"?Math.max(0,Number(nav.scrollY)||0):0;
+  state.listScrollY=targetScroll;
   closeSidebarVisual();document.body.classList.remove("mobile-detail-open");$("#modal").hidden=true;
   if(nav.view==="lab")openLab(false);
   else{state.view=nav.view||"recipes";state.category=nav.category|| (state.view==="recipes"?"store":"all");state.selected=nav.selected||currentCollection()[0].id;state.selectedView=nav.selectedView||state.view;state.query="";$("#searchInput").value="";$("#searchInput").disabled=false;$("#archiveView").hidden=false;$("#labView").hidden=true;render();if(nav.ui==="detail"&&innerWidth<768)document.body.classList.add("mobile-detail-open");}
   if(nav.ui==="sidebar")openSidebarVisual();
-  scrollTo({top:0,behavior:"instant"});
+  requestAnimationFrame(()=>requestAnimationFrame(()=>scrollTo({top:targetScroll,behavior:"instant"})));
 }
 function openSidebarVisual(){$("#sidebar").classList.add("is-open");document.body.classList.add("sidebar-open");}
 function closeSidebarVisual(){$("#sidebar").classList.remove("is-open");document.body.classList.remove("sidebar-open");}
-function toggleSidebar(){if($("#sidebar").classList.contains("is-open")){closeSidebarVisual();history.back();}else{openSidebarVisual();writeHistory("sidebar","push");}}
+function rememberListScroll(){if(innerWidth<768&&!document.body.classList.contains("mobile-detail-open")){state.listScrollY=window.scrollY;if(history.state?.app===APP_HISTORY_KEY)history.replaceState(navigationState(history.state.ui||"list",{scrollY:state.listScrollY}),"",location.href);}}
+function toggleSidebar(){if($("#sidebar").classList.contains("is-open")){closeSidebarVisual();history.back();}else{rememberListScroll();openSidebarVisual();writeHistory("sidebar","push",{scrollY:state.listScrollY});}}
 function switchView(view,record=true){
   if(view==="lab"){openLab(record);return;}
   state.view=view;state.selectedView=view;state.category=view==="recipes"?"store":"all";state.query="";$("#searchInput").value="";$("#searchInput").disabled=false;$("#searchInput").placeholder="레시피·재료·조리법 통합 검색";state.selected=currentCollection()[0].id;document.body.classList.remove("mobile-detail-open");$("#archiveView").hidden=false;$("#labView").hidden=true;$$('[data-view]').forEach(b=>b.classList.toggle("is-active",b.dataset.view===view));$$('[data-mobile-view]').forEach(b=>b.classList.toggle("is-active",b.dataset.mobileView===view));render();
