@@ -60,11 +60,12 @@ function renderCategories(){
 }
 
 function renderHeader(){
-  const recipeMode=state.view==="recipes", storeMode=recipeMode&&state.category==="store";
+  const recipeMode=state.view==="recipes";
+  const selectedCategory=categories[state.view].find(category=>category.id===state.category);
   $("#pageEyebrow").textContent=recipeMode?"MY RECIPE ARCHIVE":"STAFF COOKING GUIDE";
-  $("#pageTitle").textContent=storeMode?"우리 가게의 맛을, 기록하다":recipeMode?"모든 레시피를, 한곳에":"누가 만들어도, 같은 맛";
-  $("#pageDescription").textContent=storeMode?"배합과 공정, 문제점과 개선 이력을 버전별로 관리합니다.":recipeMode?"가게 레시피부터 새로 알게 된 조리법까지 차곡차곡 기록합니다.":"직원용 표준 조리법과 손님용 포장 조리 안내를 관리합니다.";
-  $("#filterTitle b").textContent=state.query?"통합 검색 결과":(categories[state.view].find(c=>c.id===state.category)?.label||"전체");
+  $("#pageTitle").textContent=state.query?"통합 검색 결과":(selectedCategory?.label||(recipeMode?"전체 레시피":"전체 조리 가이드"));
+  $("#pageDescription").textContent=recipeMode&&state.category==="store"?"배합과 공정, 문제점과 개선 이력을 버전별로 관리합니다.":recipeMode?"가게 레시피부터 새로 알게 된 조리법까지 차곡차곡 기록합니다.":"직원용 표준 조리법과 손님용 포장 조리 안내를 관리합니다.";
+  $("#filterTitle b").textContent=recipeMode?"레시피 리스트":"조리 가이드 리스트";
   $("#newRecipeButton").lastChild.textContent=recipeMode?" 새 레시피":" 새 조리 가이드";
   $("#recipeCount").textContent=recipeItems.length;$("#guideCount").textContent=guideItems.length;
 }
