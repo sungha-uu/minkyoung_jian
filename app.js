@@ -190,18 +190,20 @@ function legacyBindDetail(item,key){
 // Standard recipe detail layout. Every recipe and guide follows the same order:
 // title → version → ingredients → processes → detail images.
 function renderDetail(){
-  const item=selectedItem(),isRecipe=state.selectedView==="recipes",key=itemKey(item,state.selectedView),fav=favoriteSlot(key),steps=splitSteps(item),images=detailImages(item);
+  const item=selectedItem(),isRecipe=state.selectedView==="recipes",key=itemKey(item,state.selectedView),fav=favoriteSlot(key),steps=splitSteps(item),images=detailImages(item),aiPending=item.category==="school"&&!item.originalChecked,displaySubtitle=aiPending?"원본 이미지 AI 판독 대기 · 상세 검수 필요":item.subtitle||"";
   const batchValues=[0.5,1,1.5,2,3,4,5,6,7,8,9,10];
   const multiplierOptions=batchValues.map(value=>`<option value="${value}" ${state.multiplier===value?"selected":""}>${value===0.5?"½":value}배</option>`).join("");
   const processNumber=steps.prep.length?3:2;
   const imageNumber=processNumber+(steps.cook.length?1:0);
+  const pendingIngredients=`<tr><td colspan="3" class="ai-pending">원본 이미지 기준 AI 판독 대기<br><small>확정 전 OCR 초안은 표시하지 않습니다.</small></td></tr>`;
+  const pendingProcess=`<section class="recipe-section process-section"><div class="section-title"><div><span>02</span><h3>조리 과정</h3></div></div><p class="ai-pending">원본 이미지를 대조해 재료와 조리 순서를 확정하는 중입니다.</p></section>`;
   detailEl.classList.add("standard-detail");
   detailEl.innerHTML=`<div class="mobile-detail-bar"><button id="mobileBack" aria-label="목록으로 돌아가기">‹</button><b>${item.name}</b><button id="mobileMore" aria-label="더보기">•••</button></div>
-    <header class="detail-title-block"><p>${item.categoryLabel||"레시피"}</p><h2>${item.name}</h2><span>${item.subtitle||""}</span></header>
+    <header class="detail-title-block"><p>${item.categoryLabel||"레시피"}</p><h2>${item.name}</h2><span>${displaySubtitle}</span></header>
     ${isRecipe?`<button class="favorite fav-${fav}" id="favoriteButton" aria-label="${fav?`즐겨찾기 ${fav}`:"즐겨찾기 꺼짐"}" title="클릭할 때마다 노랑, 주황, 빨강, 꺼짐으로 변경">${starIcon(Boolean(fav))}</button>`:""}
     <div class="detail-toolbar"><div class="version-picker"><label for="versionSelect">버전</label><select id="versionSelect">${(item.versions||[]).map(v=>`<option value="${v.id}">${v.id} · ${v.date}</option>`).join("")}</select></div><button class="history-button" id="historyButton">버전 기록 <span>${(item.versions||[]).length}</span></button></div>
-    <div class="detail-body"><section class="recipe-section ingredient-section"><div class="section-title"><div><span>01</span><h3>재료와 계량</h3></div><label class="batch-select" for="batchSelect"><span>배율</span><select id="batchSelect">${multiplierOptions}</select></label></div><div class="ingredient-table-wrap"><table class="ingredient-table"><thead><tr><th scope="col">재료명</th><th scope="col">계량</th><th scope="col">단위</th></tr></thead><tbody>${ingredientRows(item,state.multiplier)}</tbody></table></div></section>
-    ${renderProcessSection("준비 과정",steps.prep,2)}${renderProcessSection("조리 과정",steps.cook,processNumber)}
+    <div class="detail-body"><section class="recipe-section ingredient-section"><div class="section-title"><div><span>01</span><h3>재료와 계량</h3></div><label class="batch-select" for="batchSelect"><span>배율</span><select id="batchSelect">${multiplierOptions}</select></label></div><div class="ingredient-table-wrap"><table class="ingredient-table"><thead><tr><th scope="col">재료명</th><th scope="col">계량</th><th scope="col">단위</th></tr></thead><tbody>${aiPending?pendingIngredients:ingredientRows(item,state.multiplier)}</tbody></table></div></section>
+    ${aiPending?pendingProcess:`${renderProcessSection("준비 과정",steps.prep,2)}${renderProcessSection("조리 과정",steps.cook,processNumber)}`}
     ${images.length?`<section class="recipe-section detail-images-section"><div class="section-title"><div><span>${String(imageNumber).padStart(2,"0")}</span><h3>상세 이미지</h3></div></div><div class="detail-images">${images.map(image=>`<figure class="detail-image-card"><div class="detail-image-head"><figcaption>${image.label}</figcaption>${image.original?`<button id="removeOriginalImage" type="button">이미지 삭제</button>`:""}</div><img src="${image.src}" alt="${item.name} ${image.label}" loading="lazy"></figure>`).join("")}</div></section>`:""}<p class="sample-warning">※ 레시피 내용은 버전별로 기록하고, 실제 검수 후 확정합니다.</p></div>
     <div class="version-panel" id="versionPanel" hidden><div class="version-panel-head"><h3>${item.name} 변경 기록</h3><button id="closeHistory">×</button></div><ul>${(item.versions||[]).map((v,index)=>`<li><span>${v.id}</span><div><b>${v.note}</b><small>${v.date}${index===0?" · 현재 버전":""}</small></div></li>`).join("")}</ul></div>`;
   bindDetail(item,key);
