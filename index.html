@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#f7f5f0">
   <meta name="description" content="섹시한 꾼만두의 레시피와 개선 기록을 한곳에서 관리하는 주방 노트">
-  <title>꾼의 주방 — 레시피 노트</title>
+  <title>민경의 주방 — 레시피 노트</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
-      <a class="brand" href="#" aria-label="꾼의 주방 홈">
+      <a class="brand" href="#" aria-label="민경의 주방 홈">
         <span class="brand-mark"><img src="assets/images/logo.png" alt=""></span>
-        <span><b>꾼의 주방</b><small>RECIPE ARCHIVE</small></span>
+        <span><b>민경의 주방</b><small>RECIPE ARCHIVE</small></span>
       </a>
 
       <nav class="main-nav" aria-label="주 메뉴">
@@ -32,6 +32,7 @@
         <p>레시피는 샘플 데이터입니다</p>
       </div>
     </aside>
+    <button class="sidebar-backdrop" id="sidebarBackdrop" aria-label="사이드 패널 닫기"></button>
 
     <main>
       <header class="topbar">
@@ -78,13 +79,6 @@
       </section>
     </main>
   </div>
-
-  <nav class="mobile-tabs" aria-label="모바일 주 메뉴">
-    <button class="is-active" data-mobile-view="recipes"><span>⌂</span>레시피</button>
-    <button data-mobile-view="lab"><span>✦</span>개발실</button>
-    <button data-mobile-view="guides"><span>▤</span>조리가이드</button>
-    <button data-mobile-menu><span>☰</span>더보기</button>
-  </nav>
 
   <div class="toast" id="toast" role="status"></div>
   <div class="modal-backdrop" id="modal" hidden>

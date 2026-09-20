@@ -33,6 +33,7 @@ function favoriteSlot(id){ return state.favorites[id]||0; }
 function cycleFavorite(id){ const next=(favoriteSlot(id)+1)%4; if(next)state.favorites[id]=next;else delete state.favorites[id]; saveFavorites(); showToast(next?`즐겨찾기 ${next}에 저장했습니다`:"즐겨찾기를 해제했습니다"); render(); }
 function currentCollection(){ return state.view==="recipes"?recipeItems:guideItems; }
 function itemKey(item,view){ return `${view}:${item.id}`; }
+function starIcon(active=false){return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.7l2.84 5.76 6.36.92-4.6 4.49 1.08 6.33L12 17.21 6.32 20.2l1.08-6.33-4.6-4.49 6.36-.92L12 2.7z" ${active?'fill="currentColor"':'fill="none"'} stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`;}
 function formatAmount(value,unit,multiplier){ const amount=value*multiplier; return `${Number.isInteger(amount)?amount.toLocaleString("ko-KR"):amount.toLocaleString("ko-KR",{maximumFractionDigits:1})}${unit}`; }
 function searchableText(item){ return [item.name,item.subtitle,item.categoryLabel,item.type,item.note,...(item.tags||[]),...item.ingredients.flatMap(g=>g.items.map(i=>i[0])),...item.steps.flatMap(s=>[s.title,s.body,s.tip||"",s.warning||""])].join(" ").toLowerCase(); }
 
@@ -55,7 +56,7 @@ function renderCategories(){
     let count=cat.id==="all"?source.length:cat.favorite?source.filter(item=>favoriteSlot(itemKey(item,"recipes"))===Number(cat.id.slice(-1))).length:source.filter(item=>item.category===cat.id).length;
     return `${cat.favorite&&index===categories[state.view].findIndex(c=>c.favorite)?'<div class="category-divider"></div>':""}<button class="category-link ${state.category===cat.id?"is-active":""}" data-category="${cat.id}"><span class="${cat.favorite?"favorite-dot":""}" style="--dot:${cat.color}">${cat.favorite?"★":""}</span><em>${cat.label}</em><b>${count}</b></button>`;
   }).join("");
-  $$("[data-category]").forEach(button=>button.addEventListener("click",()=>{const panelWasOpen=$("#sidebar").classList.contains("is-open");state.category=button.dataset.category;state.query="";$("#searchInput").value="";const first=filteredItems()[0];if(first){state.selected=first.item.id;state.selectedView=first.view;}render();$("#sidebar").classList.remove("is-open");writeHistory("list",panelWasOpen?"replace":"push");}));
+  $$("[data-category]").forEach(button=>button.addEventListener("click",()=>{const panelWasOpen=$("#sidebar").classList.contains("is-open");state.category=button.dataset.category;state.query="";$("#searchInput").value="";const first=filteredItems()[0];if(first){state.selected=first.item.id;state.selectedView=first.view;}render();closeSidebarVisual();writeHistory("list",panelWasOpen?"replace":"push");}));
 }
 
 function renderHeader(){
@@ -74,7 +75,7 @@ function renderList(){
     const isRecipe=view==="recipes",key=itemKey(item,view),fav=favoriteSlot(key);
     return `<article class="recipe-card ${state.selected===item.id&&state.selectedView===view?"is-active":""} ${isRecipe?"text-card":""}" data-id="${item.id}" data-library="${view}" role="button" tabindex="0">
       ${isRecipe?"":`<span class="card-image"><img src="${item.image}" alt=""><i class="status-dot ${item.statusTone}"></i></span>`}
-      ${isRecipe?`<span class="recipe-row-copy"><b>${item.name}</b><span class="version-list">${item.versions.slice(0,3).map((version,index)=>`<mark class="${index===0?"current":""}">${version.id}</mark>`).join("")}<time>${item.updated}</time></span></span><span class="card-favorite fav-${fav}" data-favorite="${key}" role="button" tabindex="0" aria-label="${fav?`즐겨찾기 ${fav}`:"즐겨찾기 꺼짐"}" title="클릭할 때마다 노랑, 주황, 빨강, 꺼짐으로 변경">${fav?"★":"☆"}</span>`:`<span class="card-copy"><small>${item.categoryLabel}</small><b>${item.name}</b><em>${item.subtitle}</em><span><mark>${item.version}</mark> ${item.updated} 수정</span></span>`}
+      ${isRecipe?`<span class="recipe-row-copy"><b>${item.name}</b></span><span class="card-favorite fav-${fav}" data-favorite="${key}" role="button" tabindex="0" aria-label="${fav?`즐겨찾기 ${fav}`:"즐겨찾기 꺼짐"}" title="클릭할 때마다 노랑, 주황, 빨강, 꺼짐으로 변경">${starIcon(Boolean(fav))}</span>`:`<span class="card-copy"><small>${item.categoryLabel}</small><b>${item.name}</b><em>${item.subtitle}</em><span><mark>${item.version}</mark> ${item.updated} 수정</span></span>`}
       <span class="card-arrow">›</span>
     </article>`;
   }).join("");
@@ -88,7 +89,7 @@ function renderDetail(){
   detailEl.classList.toggle("is-text-recipe",isRecipe&&!hasImages);
   detailEl.innerHTML=`<div class="mobile-detail-bar"><button id="mobileBack" aria-label="목록으로 돌아가기">‹</button><b>${item.name}</b><button id="mobileMore" aria-label="더보기">•••</button></div>
     ${hasImages?`<div class="detail-hero"><img src="${item.images[0]}" alt="${item.name}"><div class="hero-shade"></div>${heroCopy(item)}</div>`:isRecipe?`<div class="text-hero"><div class="text-hero-icon">${(item.type||"식").slice(0,1)}</div><div>${heroCopy(item,true)}</div><div class="tag-row">${(item.tags||[]).map(tag=>`<span>#${tag}</span>`).join("")}</div></div>`:`<div class="detail-hero"><img src="${item.image}" alt="${item.name}"><div class="hero-shade"></div>${heroCopy(item)}</div>`}
-    ${isRecipe?`<button class="favorite fav-${fav}" id="favoriteButton" aria-label="${fav?`즐겨찾기 ${fav}`:"즐겨찾기 꺼짐"}" title="클릭할 때마다 노랑, 주황, 빨강, 꺼짐으로 변경">${fav?"★":"☆"}</button>`:""}
+    ${isRecipe?`<button class="favorite fav-${fav}" id="favoriteButton" aria-label="${fav?`즐겨찾기 ${fav}`:"즐겨찾기 꺼짐"}" title="클릭할 때마다 노랑, 주황, 빨강, 꺼짐으로 변경">${starIcon(Boolean(fav))}</button>`:""}
     <div class="detail-toolbar"><div class="version-picker"><label for="versionSelect">${isRecipe?"레시피":"가이드"} 버전</label><select id="versionSelect">${item.versions.map(v=>`<option>${v.id} · ${v.date}</option>`).join("")}</select></div><button class="history-button" id="historyButton">버전 기록 <span>${item.versions.length}</span></button></div>
     <div class="quick-facts"><div><span>◷</span><small>준비 시간</small><b>${item.prep}</b></div><div><span>♨</span><small>${isRecipe?"조리·숙성":"조리 시간"}</small><b>${item.cook}</b></div><div><span>◎</span><small>기준 분량</small><b>${item.yield}</b></div></div>
     <div class="detail-body"><section class="recipe-section"><div class="section-title"><div><span>01</span><h3>${isRecipe?"재료와 계량":"준비 재료"}</h3></div><div class="batch-control"><button data-batch="0.5">½배</button><button data-batch="1" class="is-active">1배</button><button data-batch="2">2배</button><button data-batch="3">3배</button></div></div><div class="ingredient-groups">${item.ingredients.map(group=>`<div class="ingredient-group"><h4>${group.group}</h4><ul>${group.items.map(i=>`<li><span>${i[0]}</span><b data-value="${i[1]}" data-unit="${i[2]}">${formatAmount(i[1],i[2],1)}</b></li>`).join("")}</ul></div>`).join("")}</div></section>
@@ -110,13 +111,15 @@ function navigationState(ui="list"){return{ui,view:state.view,category:state.cat
 function writeHistory(ui,mode="push"){history[mode==="replace"?"replaceState":"pushState"](navigationState(ui),"",location.href);}
 function restoreHistory(nav){
   if(!nav)return;
-  $("#sidebar").classList.remove("is-open");document.body.classList.remove("mobile-detail-open");$("#modal").hidden=true;
+  closeSidebarVisual();document.body.classList.remove("mobile-detail-open");$("#modal").hidden=true;
   if(nav.view==="lab")openLab(false);
   else{state.view=nav.view||"recipes";state.category=nav.category|| (state.view==="recipes"?"store":"all");state.selected=nav.selected||currentCollection()[0].id;state.selectedView=nav.selectedView||state.view;state.query="";$("#searchInput").value="";$("#searchInput").disabled=false;$("#archiveView").hidden=false;$("#labView").hidden=true;render();if(nav.ui==="detail"&&innerWidth<768)document.body.classList.add("mobile-detail-open");}
-  if(nav.ui==="sidebar")$("#sidebar").classList.add("is-open");
+  if(nav.ui==="sidebar")openSidebarVisual();
   scrollTo({top:0,behavior:"instant"});
 }
-function toggleSidebar(){if($("#sidebar").classList.contains("is-open"))history.back();else{$("#sidebar").classList.add("is-open");writeHistory("sidebar","push");}}
+function openSidebarVisual(){$("#sidebar").classList.add("is-open");document.body.classList.add("sidebar-open");}
+function closeSidebarVisual(){$("#sidebar").classList.remove("is-open");document.body.classList.remove("sidebar-open");}
+function toggleSidebar(){if($("#sidebar").classList.contains("is-open")){closeSidebarVisual();history.back();}else{openSidebarVisual();writeHistory("sidebar","push");}}
 function switchView(view,record=true){
   if(view==="lab"){openLab(record);return;}
   state.view=view;state.selectedView=view;state.category=view==="recipes"?"store":"all";state.query="";$("#searchInput").value="";$("#searchInput").disabled=false;$("#searchInput").placeholder="레시피·재료·조리법 통합 검색";state.selected=currentCollection()[0].id;document.body.classList.remove("mobile-detail-open");$("#archiveView").hidden=false;$("#labView").hidden=true;$$('[data-view]').forEach(b=>b.classList.toggle("is-active",b.dataset.view===view));$$('[data-mobile-view]').forEach(b=>b.classList.toggle("is-active",b.dataset.mobileView===view));render();
@@ -128,5 +131,5 @@ function showToast(message){toastEl.textContent=message;toastEl.classList.add("i
 
 $("#searchInput").placeholder="레시피·재료·조리법 통합 검색";$("#searchInput").addEventListener("input",event=>{state.query=event.target.value.trim();renderHeader();renderList();});$("#sortButton").addEventListener("click",event=>{state.sortDesc=!state.sortDesc;event.currentTarget.firstChild.textContent=state.sortDesc?"최근 수정순 ":"이름순 ";renderList();});
 $("#printButton").addEventListener("click",()=>print());$("#menuButton").addEventListener("click",toggleSidebar);$("#newRecipeButton").addEventListener("click",()=>$("#modal").hidden=false);$("#modalClose").addEventListener("click",()=>$("#modal").hidden=true);$("#modalOkay").addEventListener("click",()=>$("#modal").hidden=true);$("#modal").addEventListener("click",event=>{if(event.target===event.currentTarget)event.currentTarget.hidden=true;});
-$$('[data-view]').forEach(button=>button.addEventListener("click",()=>switchView(button.dataset.view)));$$('[data-mobile-view]').forEach(button=>button.addEventListener("click",()=>switchView(button.dataset.mobileView)));$("[data-mobile-menu]").addEventListener("click",toggleSidebar);$$('[data-lab-action]').forEach(button=>button.addEventListener("click",()=>showToast("실제 레시피 입력 후 AI 개발 기능을 연결합니다")));
+$$('[data-view]').forEach(button=>button.addEventListener("click",()=>{const fromPanel=$("#sidebar").classList.contains("is-open");switchView(button.dataset.view,!fromPanel);if(fromPanel){closeSidebarVisual();writeHistory(button.dataset.view==="lab"?"lab":"list","replace");}}));$$('[data-mobile-view]').forEach(button=>button.addEventListener("click",()=>switchView(button.dataset.mobileView)));$("[data-mobile-menu]")?.addEventListener("click",toggleSidebar);$("#sidebarBackdrop").addEventListener("click",()=>{closeSidebarVisual();history.back();});$$('[data-lab-action]').forEach(button=>button.addEventListener("click",()=>showToast("실제 레시피 입력 후 AI 개발 기능을 연결합니다")));
 window.addEventListener("popstate",event=>restoreHistory(event.state));document.addEventListener("keydown",event=>{if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==="k"){event.preventDefault();$("#searchInput").focus();}if(event.key==="Escape"){if($("#sidebar").classList.contains("is-open")||document.body.classList.contains("mobile-detail-open"))history.back();else $("#modal").hidden=true;}});$("#today").textContent=new Intl.DateTimeFormat("ko-KR",{month:"long",day:"numeric",weekday:"short"}).format(new Date());render();writeHistory("list","replace");
