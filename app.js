@@ -35,14 +35,57 @@ function loadFavorites(){ try{return JSON.parse(localStorage.getItem(FAVORITES_K
 function loadRemovedSchoolImages(){ try{return JSON.parse(localStorage.getItem(SCHOOL_IMAGE_REMOVALS_KEY))||{}}catch{return{}} }
 function saveFavorites(){ localStorage.setItem(FAVORITES_KEY,JSON.stringify(state.favorites)); }
 function saveRemovedSchoolImages(){ localStorage.setItem(SCHOOL_IMAGE_REMOVALS_KEY,JSON.stringify(state.removedSchoolImages)); }
-function hasVisibleOriginal(item){ return item.category==="school"&&Boolean(item.originalImage)&&!state.removedSchoolImages[item.id]; }
-function removeSchoolImage(id){ const item=recipeItems.find(candidate=>candidate.id===id); if(!item||!hasVisibleOriginal(item))return; if(!window.confirm("검수가 끝난 원본 이미지를 대시보드에서 삭제할까요?\n\n레시피 텍스트는 유지됩니다."))return; state.removedSchoolImages[id]=true;saveRemovedSchoolImages();renderDetail();showToast("원본 이미지를 삭제했습니다"); }
+function hasVisibleOriginal(item){ return Boolean(item?.originalImage)&&!state.removedSchoolImages[item.id]; }
+function removeOriginalImage(id){ const item=recipeItems.find(candidate=>candidate.id===id); if(!item||!hasVisibleOriginal(item))return; if(!window.confirm("검수가 끝난 원본 이미지를 대시보드에서 삭제할까요?\n\n레시피 텍스트는 유지됩니다."))return; state.removedSchoolImages[id]=true;saveRemovedSchoolImages();renderDetail();showToast("원본 이미지를 삭제했습니다"); }
 function favoriteSlot(id){ return state.favorites[id]||0; }
 function cycleFavorite(id){ const next=(favoriteSlot(id)+1)%4; if(next)state.favorites[id]=next;else delete state.favorites[id]; saveFavorites(); showToast(next?`즐겨찾기 ${next}에 저장했습니다`:"즐겨찾기를 해제했습니다"); render(); }
 function currentCollection(){ return state.view==="recipes"?recipeItems:guideItems; }
 function itemKey(item,view){ return `${view}:${item.id}`; }
 function starIcon(active=false){return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.7l2.84 5.76 6.36.92-4.6 4.49 1.08 6.33L12 17.21 6.32 20.2l1.08-6.33-4.6-4.49 6.36-.92L12 2.7z" ${active?'fill="currentColor"':'fill="none"'} stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`;}
-function formatAmount(value,unit,multiplier){ if(value===null||value===undefined||value===""||Number.isNaN(Number(value)))return unit||""; const amount=Number(value)*multiplier; return `${Number.isInteger(amount)?amount.toLocaleString("ko-KR"):amount.toLocaleString("ko-KR",{maximumFractionDigits:1})}${unit&&unit!=="원문"?unit:""}`; }
+function formatAmount(value,unit,multiplier=1){
+  if(value===null||value===undefined||value==="")return "—";
+  const numeric=typeof value==="number"||(typeof value==="string"&&value.trim()!==""&&Number.isFinite(Number(value)));
+  if(!numeric)return String(value);
+  const amount=Number(value)*multiplier;
+  return Number.isInteger(amount)?amount.toLocaleString("ko-KR"):amount.toLocaleString("ko-KR",{maximumFractionDigits:2});
+}
+
+function stepPhase(step){
+  if(step?.phase==="prep"||step?.phase==="cook")return step.phase;
+  const text=`${step?.title||""} ${step?.body||""}`;
+  return /준비|전처리|손질|세척|해동|불리|밑간|분리|윗물 제거/.test(text)?"prep":"cook";
+}
+function splitSteps(item){
+  if(Array.isArray(item.prepSteps)||Array.isArray(item.cookSteps))return{prep:item.prepSteps||[],cook:item.cookSteps||[]};
+  const prep=[],cook=[];
+  (item.steps||[]).forEach(step=>(stepPhase(step)==="prep"?prep:cook).push(step));
+  return{prep,cook};
+}
+function stepText(step){
+  const title=String(step?.title||"").trim();
+  const rawBody=String(step?.body||"").trim();
+  const genericTitle=/^(준비|조리|서비스)\s*과정\s*\d+$/i.test(title);
+  const body=genericTitle?rawBody.replace(/^\s*\d+\s*[.)]?\s*/,""):rawBody;
+  let text=genericTitle?body:(title&&body?`${title} — ${body}`:title||body);
+  if(step?.tip)text+=` · 팁: ${step.tip}`;
+  if(step?.warning)text+=` · 확인: ${step.warning}`;
+  return text||"내용을 입력하세요.";
+}
+function ingredientRows(item,multiplier){
+  return (item.ingredients||[]).map(group=>`<tr class="ingredient-group-row"><th colspan="3">${group.group||"재료"}</th></tr>${(group.items||[]).map(i=>`<tr><td>${i[0]??"—"}</td><td class="ingredient-amount" data-value="${i[1]??""}">${formatAmount(i[1],i[2],multiplier)}</td><td>${i[2]||"—"}</td></tr>`).join("")}`).join("");
+}
+function renderProcessSection(title,steps,number){
+  if(!steps.length)return "";
+  return `<section class="recipe-section process-section"><div class="section-title"><div><span>${String(number).padStart(2,"0")}</span><h3>${title}</h3></div></div><ol class="simple-steps">${steps.map(step=>`<li><span>${stepText(step)}</span></li>`).join("")}</ol></section>`;
+}
+function detailImages(item){
+  const images=[];
+  if(hasVisibleOriginal(item))images.push({src:item.originalImage,label:"원본 레시피 이미지",original:true});
+  const supplemental=[...(item.images||[])];
+  if(item.image&&!supplemental.includes(item.image))supplemental.push(item.image);
+  supplemental.forEach((src,index)=>images.push({src,label:index===0?"상세 이미지":"추가 이미지",original:false}));
+  return images;
+}
 function searchableText(item){ return [item.name,item.subtitle,item.categoryLabel,item.type,item.note,...(item.tags||[]),...item.ingredients.flatMap(g=>g.items.map(i=>i[0])),...item.steps.flatMap(s=>[s.title,s.body,s.tip||"",s.warning||""])].join(" ").toLowerCase(); }
 
 function filteredItems(){
@@ -93,7 +136,7 @@ function renderList(){
 }
 
 function selectedItem(){ const source=state.selectedView==="recipes"?recipeItems:guideItems;return source.find(item=>item.id===state.selected)||filteredItems()[0]?.item||currentCollection()[0]; }
-function renderDetail(){
+function legacyRenderDetail(){
   const item=selectedItem(),isRecipe=state.selectedView==="recipes",key=itemKey(item,state.selectedView),fav=favoriteSlot(key),hasImages=isRecipe&&item.images?.length,showOriginal=hasVisibleOriginal(item);
   detailEl.classList.toggle("is-text-recipe",isRecipe&&!hasImages);
   detailEl.innerHTML=`<div class="mobile-detail-bar"><button id="mobileBack" aria-label="목록으로 돌아가기">‹</button><b>${item.name}</b><button id="mobileMore" aria-label="더보기">•••</button></div>
@@ -110,11 +153,37 @@ function renderDetail(){
   bindDetail(item,key);
 }
 function heroCopy(item,text=false){ return `<div class="${text?"text-hero-copy":"detail-hero-copy"}">${text?"":`<div class="detail-meta"><span>${item.type||item.categoryLabel}</span><i>·</i><span class="live-status ${item.statusTone}"><b></b>${item.status}</span></div>`}<h2>${item.name}</h2><p>${item.subtitle}</p></div>`; }
-function bindDetail(item,key){
+function legacyBindDetail(item,key){
   $$("[data-batch]").forEach(button=>button.addEventListener("click",()=>{state.multiplier=Number(button.dataset.batch);$$("[data-batch]").forEach(b=>b.classList.toggle("is-active",b===button));$$("[data-value]").forEach(el=>el.textContent=formatAmount(Number(el.dataset.value),el.dataset.unit,state.multiplier));}));
   $("#historyButton").addEventListener("click",()=>$("#versionPanel").hidden=false);$("#closeHistory").addEventListener("click",()=>$("#versionPanel").hidden=true);$("#favoriteButton")?.addEventListener("click",()=>cycleFavorite(key));
   $("#mobileBack").addEventListener("click",()=>history.back());$("#mobileMore").addEventListener("click",()=>showToast("공유·인쇄 메뉴를 준비하고 있어요"));
-  $("#copyNote").addEventListener("click",async()=>{await navigator.clipboard?.writeText(item.note);showToast("메모를 복사했습니다");});$("#photoInfo")?.addEventListener("click",()=>showToast("실제 입력 기능은 다음 단계에서 연결합니다"));$("#removeOriginalImage")?.addEventListener("click",()=>removeSchoolImage(item.id));
+  $("#copyNote").addEventListener("click",async()=>{await navigator.clipboard?.writeText(item.note);showToast("메모를 복사했습니다");});$("#photoInfo")?.addEventListener("click",()=>showToast("실제 입력 기능은 다음 단계에서 연결합니다"));$("#removeOriginalImage")?.addEventListener("click",()=>removeOriginalImage(item.id));
+}
+
+// Standard recipe detail layout. Every recipe and guide follows the same order:
+// title → version → ingredients → processes → detail images.
+function renderDetail(){
+  const item=selectedItem(),isRecipe=state.selectedView==="recipes",key=itemKey(item,state.selectedView),fav=favoriteSlot(key),steps=splitSteps(item),images=detailImages(item);
+  const batchValues=[0.5,1,1.5,2,3,4,5,6,7,8,9,10];
+  const multiplierOptions=batchValues.map(value=>`<option value="${value}" ${state.multiplier===value?"selected":""}>${value===0.5?"½":value}배</option>`).join("");
+  const processNumber=steps.prep.length?3:2;
+  const imageNumber=processNumber+(steps.cook.length?1:0);
+  detailEl.classList.add("standard-detail");
+  detailEl.innerHTML=`<div class="mobile-detail-bar"><button id="mobileBack" aria-label="목록으로 돌아가기">‹</button><b>${item.name}</b><button id="mobileMore" aria-label="더보기">•••</button></div>
+    <header class="detail-title-block"><p>${item.categoryLabel||"레시피"}</p><h2>${item.name}</h2><span>${item.subtitle||""}</span></header>
+    ${isRecipe?`<button class="favorite fav-${fav}" id="favoriteButton" aria-label="${fav?`즐겨찾기 ${fav}`:"즐겨찾기 꺼짐"}" title="클릭할 때마다 노랑, 주황, 빨강, 꺼짐으로 변경">${starIcon(Boolean(fav))}</button>`:""}
+    <div class="detail-toolbar"><div class="version-picker"><label for="versionSelect">버전</label><select id="versionSelect">${(item.versions||[]).map(v=>`<option value="${v.id}">${v.id} · ${v.date}</option>`).join("")}</select></div><button class="history-button" id="historyButton">버전 기록 <span>${(item.versions||[]).length}</span></button></div>
+    <div class="detail-body"><section class="recipe-section ingredient-section"><div class="section-title"><div><span>01</span><h3>재료와 계량</h3></div><label class="batch-select" for="batchSelect"><span>배율</span><select id="batchSelect">${multiplierOptions}</select></label></div><div class="ingredient-table-wrap"><table class="ingredient-table"><thead><tr><th scope="col">재료명</th><th scope="col">계량</th><th scope="col">단위</th></tr></thead><tbody>${ingredientRows(item,state.multiplier)}</tbody></table></div></section>
+    ${renderProcessSection("준비 과정",steps.prep,2)}${renderProcessSection("조리 과정",steps.cook,processNumber)}
+    ${images.length?`<section class="recipe-section detail-images-section"><div class="section-title"><div><span>${String(imageNumber).padStart(2,"0")}</span><h3>상세 이미지</h3></div></div><div class="detail-images">${images.map(image=>`<figure class="detail-image-card"><div class="detail-image-head"><figcaption>${image.label}</figcaption>${image.original?`<button id="removeOriginalImage" type="button">이미지 삭제</button>`:""}</div><img src="${image.src}" alt="${item.name} ${image.label}" loading="lazy"></figure>`).join("")}</div></section>`:""}<p class="sample-warning">※ 레시피 내용은 버전별로 기록하고, 실제 검수 후 확정합니다.</p></div>
+    <div class="version-panel" id="versionPanel" hidden><div class="version-panel-head"><h3>${item.name} 변경 기록</h3><button id="closeHistory">×</button></div><ul>${(item.versions||[]).map((v,index)=>`<li><span>${v.id}</span><div><b>${v.note}</b><small>${v.date}${index===0?" · 현재 버전":""}</small></div></li>`).join("")}</ul></div>`;
+  bindDetail(item,key);
+}
+function bindDetail(item,key){
+  $("#batchSelect")?.addEventListener("change",event=>{state.multiplier=Number(event.target.value);$$("[data-value]").forEach(el=>{const row=el.closest("tr");const unit=row?.querySelector("td:last-child")?.textContent||"";el.textContent=formatAmount(el.dataset.value,unit,state.multiplier);});});
+  $("#historyButton").addEventListener("click",()=>$("#versionPanel").hidden=false);$("#closeHistory").addEventListener("click",()=>$("#versionPanel").hidden=true);$("#favoriteButton")?.addEventListener("click",()=>cycleFavorite(key));
+  $("#mobileBack").addEventListener("click",()=>history.back());$("#mobileMore").addEventListener("click",()=>showToast("공유·인쇄 메뉴를 준비하고 있어요"));
+  $("#removeOriginalImage")?.addEventListener("click",()=>removeOriginalImage(item.id));
 }
 
 function navigationState(ui="list"){return{app:APP_HISTORY_KEY,ui,view:state.view,category:state.category,selected:state.selected,selectedView:state.selectedView};}
