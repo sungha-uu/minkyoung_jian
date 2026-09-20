@@ -61,22 +61,49 @@ function splitSteps(item){
   (item.steps||[]).forEach(step=>(stepPhase(step)==="prep"?prep:cook).push(step));
   return{prep,cook};
 }
-function stepText(step){
-  const title=String(step?.title||"").trim();
-  const rawBody=String(step?.body||"").trim();
-  const genericTitle=/^(준비|조리|서비스)\s*과정\s*\d+$/i.test(title);
-  const body=genericTitle?rawBody.replace(/^\s*\d+\s*[.)]?\s*/,""):rawBody;
-  let text=genericTitle?body:(title&&body?`${title} — ${body}`:title||body);
-  if(step?.tip)text+=` · 팁: ${step.tip}`;
-  if(step?.warning)text+=` · 확인: ${step.warning}`;
-  return text||"내용을 입력하세요.";
+function splitStepSentences(value){
+  return String(value||"").replace(/\r\n/g,"\n").replace(/[.!?。](?=\s|[가-힣A-Za-z])/g,"$&\n").split(/\n+/).map(text=>text.trim()).filter(Boolean);
+}
+function conciseStepText(value){
+  let text=String(value||"").replace(/^\s*[•·\-]+\s*/,"").replace(/^\s*\d+\s*[.)]?\s*/,"").replace(/[.!?。]+$/g,"").trim();
+  const endings=[
+    [/끓여줍니다$/,"끓이기"],[/넣어줍니다$/,"넣기"],[/부어줍니다$/,"붓기"],[/올려줍니다$/,"올리기"],[/섞어줍니다$/,"섞기"],
+    [/반죽합니다$/,"반죽하기"],[/만듭니다$/,"만들기"],[/끓입니다$/,"끓이기"],[/튀깁니다$/,"튀기기"],[/섞습니다$/,"섞기"],
+    [/넣습니다$/,"넣기"],[/맞춥니다$/,"맞추기"],[/다집니다$/,"다지기"],[/뺍니다$/,"빼기"],[/기록합니다$/,"기록"],[/확인합니다$/,"확인"],
+    [/제거합니다$/,"제거"],[/조리합니다$/,"조리"],[/합니다$/,""],[/됩니다$/,""],[/바랍니다$/,""],[/주세요$/,"하기"]
+  ];
+  for(const [pattern,replacement] of endings){
+    if(pattern.test(text)){text=text.replace(pattern,replacement);break;}
+  }
+  return text.trim();
+}
+function stepNotes(step,body){
+  const notes=[];
+  if(step?.tip)notes.push(String(step.tip).trim());
+  if(step?.warning)notes.push(String(step.warning).trim());
+  const inline=String(body||"").match(/(?:[·•]\s*)?(?:팁|확인|주의|TIP)\s*[:：]\s*(.+)$/i);
+  if(inline){
+    notes.push(inline[1].trim());
+  }
+  return [...new Set(notes.filter(Boolean))];
+}
+function stepActions(step){
+  let body=String(step?.body||"").trim();
+  body=body.replace(/(?:[·•]\s*)?(?:팁|확인|주의|TIP)\s*[:：]\s*.+$/i,"").trim();
+  const actions=splitStepSentences(body).map(conciseStepText).filter(Boolean);
+  return actions.length?actions:[conciseStepText(step?.title)||"내용을 입력하세요."];
 }
 function ingredientRows(item,multiplier){
   return (item.ingredients||[]).map(group=>`<tr class="ingredient-group-row"><th colspan="3">${group.group||"재료"}</th></tr>${(group.items||[]).map(i=>`<tr><td>${i[0]??"—"}</td><td class="ingredient-amount" data-value="${i[1]??""}">${formatAmount(i[1],i[2],multiplier)}</td><td>${i[2]||"—"}</td></tr>`).join("")}`).join("");
 }
 function renderProcessSection(title,steps,number){
   if(!steps.length)return "";
-  return `<section class="recipe-section process-section"><div class="section-title"><div><span>${String(number).padStart(2,"0")}</span><h3>${title}</h3></div></div><ol class="simple-steps">${steps.map(step=>`<li><span>${stepText(step)}</span></li>`).join("")}</ol></section>`;
+  const items=[];
+  steps.forEach(step=>{
+    const actions=stepActions(step),notes=stepNotes(step,step?.body);
+    actions.forEach((action,index)=>items.push(`<li><span>${action}</span>${index===actions.length-1&&notes.length?`<small class="step-note">${notes.map(note=>`(※ ${note})`).join("<br>")}</small>`:""}</li>`));
+  });
+  return `<section class="recipe-section process-section"><div class="section-title"><div><span>${String(number).padStart(2,"0")}</span><h3>${title}</h3></div></div><ol class="simple-steps">${items.join("")}</ol></section>`;
 }
 function detailImages(item){
   const images=[];
