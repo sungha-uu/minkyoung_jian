@@ -1,6 +1,7 @@
 const recipeItems = window.RECIPE_DATA;
 const guideItems = window.GUIDE_DATA;
 const FAVORITES_KEY = "kkun-recipe-favorites-v1";
+const APP_HISTORY_KEY = "minkyoung-kitchen";
 const categories = {
   recipes: [
     { id:"all", label:"전체 레시피", color:"#eb5d43" },
@@ -26,6 +27,8 @@ const $$ = (selector) => [...document.querySelectorAll(selector)];
 const listEl = $("#recipeList");
 const detailEl = $("#recipeDetail");
 const toastEl = $("#toast");
+const exitModalEl = $("#exitModal");
+let exitConfirmed = false;
 
 function loadFavorites(){ try{return JSON.parse(localStorage.getItem(FAVORITES_KEY))||{}}catch{return{}} }
 function saveFavorites(){ localStorage.setItem(FAVORITES_KEY,JSON.stringify(state.favorites)); }
@@ -108,8 +111,11 @@ function bindDetail(item,key){
   $("#copyNote").addEventListener("click",async()=>{await navigator.clipboard?.writeText(item.note);showToast("메모를 복사했습니다");});$("#photoInfo")?.addEventListener("click",()=>showToast("실제 입력 기능은 다음 단계에서 연결합니다"));
 }
 
-function navigationState(ui="list"){return{ui,view:state.view,category:state.category,selected:state.selected,selectedView:state.selectedView};}
+function navigationState(ui="list"){return{app:APP_HISTORY_KEY,ui,view:state.view,category:state.category,selected:state.selected,selectedView:state.selectedView};}
 function writeHistory(ui,mode="push"){history[mode==="replace"?"replaceState":"pushState"](navigationState(ui),"",location.href);}
+function showExitConfirm(){exitModalEl.hidden=false;requestAnimationFrame(()=>$("#exitCancel").focus());}
+function cancelExit(){exitModalEl.hidden=true;history.replaceState(navigationState("list"),"",location.href);}
+function confirmExit(){exitModalEl.hidden=true;exitConfirmed=true;history.back();}
 function restoreHistory(nav){
   if(!nav)return;
   closeSidebarVisual();document.body.classList.remove("mobile-detail-open");$("#modal").hidden=true;
@@ -133,4 +139,5 @@ function showToast(message){toastEl.textContent=message;toastEl.classList.add("i
 $("#searchInput").placeholder="레시피·재료·조리법 통합 검색";$("#searchInput").addEventListener("input",event=>{state.query=event.target.value.trim();renderHeader();renderList();});$("#sortButton").addEventListener("click",event=>{state.sortDesc=!state.sortDesc;event.currentTarget.firstChild.textContent=state.sortDesc?"최근 수정순 ":"이름순 ";renderList();});
 $("#printButton").addEventListener("click",()=>print());$("#menuButton").addEventListener("click",toggleSidebar);$("#newRecipeButton").addEventListener("click",()=>$("#modal").hidden=false);$("#modalClose").addEventListener("click",()=>$("#modal").hidden=true);$("#modalOkay").addEventListener("click",()=>$("#modal").hidden=true);$("#modal").addEventListener("click",event=>{if(event.target===event.currentTarget)event.currentTarget.hidden=true;});
 $$('[data-view]').forEach(button=>button.addEventListener("click",()=>{const fromPanel=$("#sidebar").classList.contains("is-open");switchView(button.dataset.view,!fromPanel);if(fromPanel){closeSidebarVisual();writeHistory(button.dataset.view==="lab"?"lab":"list","replace");}}));$$('[data-mobile-view]').forEach(button=>button.addEventListener("click",()=>switchView(button.dataset.mobileView)));$("[data-mobile-menu]")?.addEventListener("click",toggleSidebar);$("#sidebarBackdrop").addEventListener("click",()=>{closeSidebarVisual();history.back();});$$('[data-lab-action]').forEach(button=>button.addEventListener("click",()=>showToast("실제 레시피 입력 후 AI 개발 기능을 연결합니다")));
-window.addEventListener("popstate",event=>restoreHistory(event.state));document.addEventListener("keydown",event=>{if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==="k"){event.preventDefault();$("#searchInput").focus();}if(event.key==="Escape"){if($("#sidebar").classList.contains("is-open")||document.body.classList.contains("mobile-detail-open"))history.back();else $("#modal").hidden=true;}});$("#today").textContent=new Intl.DateTimeFormat("ko-KR",{month:"long",day:"numeric",weekday:"short"}).format(new Date());render();writeHistory("list","replace");
+$("#exitCancel").addEventListener("click",cancelExit);$("#exitConfirm").addEventListener("click",confirmExit);exitModalEl.addEventListener("click",event=>{if(event.target===exitModalEl)cancelExit();});
+window.addEventListener("popstate",event=>{if(event.state?.exitGuard){if(exitConfirmed){exitConfirmed=false;history.back();return;}history.pushState({app:APP_HISTORY_KEY,ui:"exit-prompt"},"",location.href);showExitConfirm();return;}if(event.state?.ui==="exit-prompt"){showExitConfirm();return;}exitModalEl.hidden=true;restoreHistory(event.state);});document.addEventListener("keydown",event=>{if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==="k"){event.preventDefault();$("#searchInput").focus();}if(event.key==="Escape"){if(!exitModalEl.hidden)cancelExit();else if($("#sidebar").classList.contains("is-open")||document.body.classList.contains("mobile-detail-open"))history.back();else $("#modal").hidden=true;}});$("#today").textContent=new Intl.DateTimeFormat("ko-KR",{month:"long",day:"numeric",weekday:"short"}).format(new Date());render();if(history.state?.app===APP_HISTORY_KEY&&!history.state.exitGuard){restoreHistory(history.state);if(history.state.ui==="exit-prompt")showExitConfirm();}else{history.replaceState({app:APP_HISTORY_KEY,exitGuard:true},"",location.href);history.pushState(navigationState("list"),"",location.href);}
