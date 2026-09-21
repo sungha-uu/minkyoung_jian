@@ -233,13 +233,15 @@ function bindDetail(item,key){
 
 function navigateDetail(id,view){
   if(!id)return;
+  const replacingDetail=state.detailOpen&&history.state?.app===APP_HISTORY_KEY&&history.state?.ui==="detail";
+  if(!replacingDetail)history.replaceState(navigationState("list",{scrollY:state.listScrollY}),"",location.href);
   state.selected=id;state.selectedView=view||state.selectedView;state.listFocusId=id;state.detailOpen=true;state.multiplier=1;
   render();
   if(innerWidth<768)document.body.classList.add("mobile-detail-open");
   scrollTo({top:0,behavior:"instant"});
   // 이전·다음 이동은 상세 히스토리를 새로 쌓지 않고 현재 항목을 교체합니다.
   // 따라서 여러 메뉴를 연속 이동해도 백키 한 번이면 목록으로 돌아갑니다.
-  writeHistory("detail","replace",{scrollY:0});
+  writeHistory("detail",replacingDetail?"replace":"push",{scrollY:0});
 }
 
 function navigationState(ui="list",extra={}){return{app:APP_HISTORY_KEY,ui,view:state.view,category:state.category,selected:state.selected,selectedView:state.selectedView,scrollY:extra.scrollY??state.listScrollY??0};}
