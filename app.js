@@ -22,7 +22,7 @@ const categories = {
   ]
 };
 
-const state = { view:"recipes", category:"store", query:"", selected:recipeItems[0].id, selectedView:"recipes", multiplier:1, sortDesc:true, listScrollY:0, favorites:loadFavorites(), removedSchoolImages:loadRemovedSchoolImages() };
+const state = { view:"recipes", category:"store", query:"", selected:recipeItems[0].id, selectedView:"recipes", multiplier:1, sortDesc:true, listScrollY:0, listFocusId:null, detailOpen:false, favorites:loadFavorites(), removedSchoolImages:loadRemovedSchoolImages() };
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const listEl = $("#recipeList");
@@ -149,7 +149,7 @@ function renderCategories(){
     let count=cat.id==="all"?source.length:cat.favorite?source.filter(item=>favoriteSlot(itemKey(item,"recipes"))===Number(cat.id.slice(-1))).length:source.filter(item=>item.category===cat.id).length;
     return `${cat.favorite&&index===categories[state.view].findIndex(c=>c.favorite)?'<div class="category-divider"></div>':""}<button class="category-link ${state.category===cat.id?"is-active":""}" data-category="${cat.id}"><span class="${cat.favorite?"favorite-dot":""}" style="--dot:${cat.color}">${cat.favorite?"★":""}</span><em>${cat.label}</em><b>${count}</b></button>`;
   }).join("");
-  $$("[data-category]").forEach(button=>button.addEventListener("click",()=>{const panelWasOpen=$("#sidebar").classList.contains("is-open");state.category=button.dataset.category;state.query="";$("#searchInput").value="";const first=filteredItems()[0];if(first){state.selected=first.item.id;state.selectedView=first.view;}render();closeSidebarVisual();writeHistory("list",panelWasOpen?"replace":"push");}));
+  $$("[data-category]").forEach(button=>button.addEventListener("click",()=>{const panelWasOpen=$("#sidebar").classList.contains("is-open");state.category=button.dataset.category;state.query="";state.listFocusId=null;state.detailOpen=false;$("#searchInput").value="";const first=filteredItems()[0];if(first){state.selected=first.item.id;state.selectedView=first.view;}render();closeSidebarVisual();writeHistory("list",panelWasOpen?"replace":"push");}));
 }
 
 function renderHeader(){
@@ -173,7 +173,7 @@ function renderList(){
       <span class="card-arrow">›</span>
     </article>`;
   }).join("");
-  $$(".recipe-card").forEach(card=>{const open=()=>{const listScrollY=window.scrollY;state.listScrollY=listScrollY;state.selected=card.dataset.id;state.selectedView=card.dataset.library;state.multiplier=1;if(innerWidth<768)history.replaceState(navigationState("list",{scrollY:listScrollY}),"",location.href);render();if(innerWidth<768){document.body.classList.add("mobile-detail-open");scrollTo({top:0,behavior:"instant"});writeHistory("detail","push",{scrollY:0});}};card.addEventListener("click",open);card.addEventListener("keydown",event=>{if(event.target===card&&["Enter"," "].includes(event.key)){event.preventDefault();open();}});});
+  $$(".recipe-card").forEach(card=>{const open=()=>{const replacingDetail=state.detailOpen&&history.state?.app===APP_HISTORY_KEY&&history.state?.ui==="detail";const listScrollY=replacingDetail?state.listScrollY:window.scrollY;state.listScrollY=listScrollY;state.selected=card.dataset.id;state.selectedView=card.dataset.library;state.listFocusId=card.dataset.id;state.detailOpen=true;state.multiplier=1;if(!replacingDetail)history.replaceState(navigationState("list",{scrollY:listScrollY}),"",location.href);render();if(innerWidth<768){document.body.classList.add("mobile-detail-open");scrollTo({top:0,behavior:"instant"});}writeHistory("detail",replacingDetail?"replace":"push",{scrollY:0});};card.addEventListener("click",open);card.addEventListener("keydown",event=>{if(event.target===card&&["Enter"," "].includes(event.key)){event.preventDefault();open();}});});
   $$("[data-favorite]").forEach(button=>{const activate=event=>{event.stopPropagation();if(event.type==="keydown"&&!['Enter',' '].includes(event.key))return;event.preventDefault();cycleFavorite(button.dataset.favorite);};button.addEventListener("click",activate);button.addEventListener("keydown",activate);});
 }
 
@@ -233,11 +233,13 @@ function bindDetail(item,key){
 
 function navigateDetail(id,view){
   if(!id)return;
-  state.selected=id;state.selectedView=view||state.selectedView;state.multiplier=1;state.listScrollY=0;
+  state.selected=id;state.selectedView=view||state.selectedView;state.listFocusId=id;state.detailOpen=true;state.multiplier=1;
   render();
   if(innerWidth<768)document.body.classList.add("mobile-detail-open");
   scrollTo({top:0,behavior:"instant"});
-  writeHistory("detail","push",{scrollY:0});
+  // 이전·다음 이동은 상세 히스토리를 새로 쌓지 않고 현재 항목을 교체합니다.
+  // 따라서 여러 메뉴를 연속 이동해도 백키 한 번이면 목록으로 돌아갑니다.
+  writeHistory("detail","replace",{scrollY:0});
 }
 
 function navigationState(ui="list",extra={}){return{app:APP_HISTORY_KEY,ui,view:state.view,category:state.category,selected:state.selected,selectedView:state.selectedView,scrollY:extra.scrollY??state.listScrollY??0};}
@@ -247,13 +249,24 @@ function cancelExit(){exitModalEl.hidden=true;history.replaceState(navigationSta
 function confirmExit(){exitModalEl.hidden=true;exitConfirmed=true;history.back();}
 function restoreHistory(nav){
   if(!nav)return;
+  const returningFromDetail=nav.ui==="list"&&state.detailOpen;
+  const returnId=returningFromDetail?(state.listFocusId||state.selected):null;
   const targetScroll=nav.ui==="list"?Math.max(0,Number(nav.scrollY)||0):0;
   state.listScrollY=targetScroll;
   closeSidebarVisual();document.body.classList.remove("mobile-detail-open");$("#modal").hidden=true;
   if(nav.view==="lab")openLab(false);
-  else{state.view=nav.view||"recipes";state.category=nav.category|| (state.view==="recipes"?"store":"all");state.selected=nav.selected||currentCollection()[0].id;state.selectedView=nav.selectedView||state.view;state.query="";$("#searchInput").value="";$("#searchInput").disabled=false;$("#archiveView").hidden=false;$("#labView").hidden=true;render();if(nav.ui==="detail"&&innerWidth<768)document.body.classList.add("mobile-detail-open");}
+  else{state.view=nav.view||"recipes";state.category=nav.category|| (state.view==="recipes"?"store":"all");state.selected=returnId||nav.selected||currentCollection()[0].id;state.selectedView=returningFromDetail?state.selectedView:(nav.selectedView||state.view);state.listFocusId=returningFromDetail?state.selected:null;state.detailOpen=nav.ui==="detail";state.query="";$("#searchInput").value="";$("#searchInput").disabled=false;$("#archiveView").hidden=false;$("#labView").hidden=true;render();if(nav.ui==="detail"&&innerWidth<768)document.body.classList.add("mobile-detail-open");}
   if(nav.ui==="sidebar")openSidebarVisual();
-  requestAnimationFrame(()=>requestAnimationFrame(()=>scrollTo({top:targetScroll,behavior:"instant"})));
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{scrollTo({top:targetScroll,behavior:"instant"});if(returningFromDetail)focusListCard(returnId);}));
+}
+function focusListCard(id){
+  if(!id)return;
+  const card=$$(".recipe-card").find(candidate=>candidate.dataset.id===id);
+  if(!card)return;
+  card.classList.add("is-return-target");
+  card.focus({preventScroll:true});
+  clearTimeout(focusListCard.timer);
+  focusListCard.timer=setTimeout(()=>card.classList.remove("is-return-target"),1800);
 }
 function openSidebarVisual(){$("#sidebar").classList.add("is-open");document.body.classList.add("sidebar-open");}
 function closeSidebarVisual(){$("#sidebar").classList.remove("is-open");document.body.classList.remove("sidebar-open");}
@@ -261,10 +274,10 @@ function rememberListScroll(){if(innerWidth<768&&!document.body.classList.contai
 function toggleSidebar(){if($("#sidebar").classList.contains("is-open")){closeSidebarVisual();history.back();}else{rememberListScroll();openSidebarVisual();writeHistory("sidebar","push",{scrollY:state.listScrollY});}}
 function switchView(view,record=true){
   if(view==="lab"){openLab(record);return;}
-  state.view=view;state.selectedView=view;state.category=view==="recipes"?"store":"all";state.query="";$("#searchInput").value="";$("#searchInput").disabled=false;$("#searchInput").placeholder="레시피·재료·조리법 통합 검색";state.selected=currentCollection()[0].id;document.body.classList.remove("mobile-detail-open");$("#archiveView").hidden=false;$("#labView").hidden=true;$$('[data-view]').forEach(b=>b.classList.toggle("is-active",b.dataset.view===view));$$('[data-mobile-view]').forEach(b=>b.classList.toggle("is-active",b.dataset.mobileView===view));render();
+  state.view=view;state.selectedView=view;state.category=view==="recipes"?"store":"all";state.query="";state.listFocusId=null;state.detailOpen=false;$("#searchInput").value="";$("#searchInput").disabled=false;$("#searchInput").placeholder="레시피·재료·조리법 통합 검색";state.selected=currentCollection()[0].id;document.body.classList.remove("mobile-detail-open");$("#archiveView").hidden=false;$("#labView").hidden=true;$$('[data-view]').forEach(b=>b.classList.toggle("is-active",b.dataset.view===view));$$('[data-mobile-view]').forEach(b=>b.classList.toggle("is-active",b.dataset.mobileView===view));render();
   if(record)writeHistory("list","push");
 }
-function openLab(record=true){state.view="lab";document.body.classList.remove("mobile-detail-open");$("#archiveView").hidden=true;$("#labView").hidden=false;$("#pageEyebrow").textContent="AI KITCHEN LAB";$("#pageTitle").textContent="함께 연구하고, 기록하다";$("#pageDescription").textContent="레시피 개선부터 신메뉴 테스트 계획서까지 한 흐름으로 관리합니다.";$("#newRecipeButton").lastChild.textContent=" 새 개발 계획";$("#searchInput").value="";$("#searchInput").disabled=true;$("#searchInput").placeholder="개발실에서는 검색을 사용하지 않습니다";$("#categoryTitle").textContent="메뉴 개발 도구";$("#categoryList").innerHTML='<button class="category-link is-active"><span style="--dot:#eb5d43"></span><em>개발실 홈</em></button><button class="category-link"><span style="--dot:#5b9a81"></span><em>진행 중 테스트</em></button><button class="category-link"><span style="--dot:#826eb4"></span><em>완료된 계획서</em></button>';$$('[data-view]').forEach(b=>b.classList.toggle("is-active",b.dataset.view==="lab"));$$('[data-mobile-view]').forEach(b=>b.classList.toggle("is-active",b.dataset.mobileView==="lab"));if(record)writeHistory("lab","push");}
+function openLab(record=true){state.view="lab";state.detailOpen=false;state.listFocusId=null;document.body.classList.remove("mobile-detail-open");$("#archiveView").hidden=true;$("#labView").hidden=false;$("#pageEyebrow").textContent="AI KITCHEN LAB";$("#pageTitle").textContent="함께 연구하고, 기록하다";$("#pageDescription").textContent="레시피 개선부터 신메뉴 테스트 계획서까지 한 흐름으로 관리합니다.";$("#newRecipeButton").lastChild.textContent=" 새 개발 계획";$("#searchInput").value="";$("#searchInput").disabled=true;$("#searchInput").placeholder="개발실에서는 검색을 사용하지 않습니다";$("#categoryTitle").textContent="메뉴 개발 도구";$("#categoryList").innerHTML='<button class="category-link is-active"><span style="--dot:#eb5d43"></span><em>개발실 홈</em></button><button class="category-link"><span style="--dot:#5b9a81"></span><em>진행 중 테스트</em></button><button class="category-link"><span style="--dot:#826eb4"></span><em>완료된 계획서</em></button>';$$('[data-view]').forEach(b=>b.classList.toggle("is-active",b.dataset.view==="lab"));$$('[data-mobile-view]').forEach(b=>b.classList.toggle("is-active",b.dataset.mobileView==="lab"));if(record)writeHistory("lab","push");}
 function render(){renderCategories();renderHeader();renderList();renderDetail();}
 function showToast(message){toastEl.textContent=message;toastEl.classList.add("is-visible");clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toastEl.classList.remove("is-visible"),2200);}
 
